@@ -17,7 +17,7 @@ import PackageDescription
 
 let package = Package(
     dependencies: [
-        .Package(url: "https://github.com/tbc", majorVersion: 0, minor: 0)
+        .Package(url: "https://gitlab.com/4auth/devx/tru-sdk-ios.git", majorVersion: 0, minor: 0)
     ]
 )
 ```
