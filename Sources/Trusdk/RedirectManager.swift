@@ -47,15 +47,17 @@ class RedirectManager {
         connection?.stateUpdateHandler = { (newState) in
             switch (newState) {
                 case .ready:
-                    print("State: Ready \(self.connection.debugDescription)\n")
+                    print("Connection State: Ready \(self.connection.debugDescription)\n")
                 case .setup:
-                    print("State: Setup\n")
+                    print("Connection State: Setup\n")
                 case .cancelled:
-                    print("State: Cancelled\n")
+                    print("Connection State: Cancelled\n")
                 case .preparing:
-                    print("State: Preparing\n")
+                    print("Connection State: Preparing\n")
                 default:
-                    print("ERROR! State not defined!\n")
+                    print("Connection ERROR State not defined\n")
+                    self.connection?.cancel()
+                    break
             }
         }
         connection?.start(queue: .main)
@@ -71,6 +73,7 @@ class RedirectManager {
               print("Receive isComplete: " + isComplete.description)
               guard let d = data else {
                   print("Error: Received nil Data")
+                  completion(nil)
                   return
               }
               let r = String(data: d, encoding: .utf8)!
