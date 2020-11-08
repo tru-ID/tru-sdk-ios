@@ -1,6 +1,6 @@
 # Trusdk
 
-iOS SDK for tru.id: Blazingly fast phone verification. Exposes APIs for instant, invisible strong authentication.
+iOS SDK for tru.ID: Blazingly fast phone verification. Exposes APIs for instant, invisible strong authentication.
 
 [![Swift Version][swift-image]][swift-url]
 [![License][license-image]][license-url]
@@ -35,6 +35,9 @@ truSdk.openCheckUrl(url: url, completion: completion)
 
 * 0.0.1
     * Work in progress
+* 0.0.2
+    * RedirectManager openCheckUrl completion support
+        
 
 ## Meta
 

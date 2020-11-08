@@ -93,27 +93,30 @@ class RedirectManager {
         return nil
     }
 
-    func openCheckUrl(link: String) {
-        print("opening \(link)")
-        let url = URL(string: link)!
-        startConnection(url: url)
-        var str = String(format: "GET %@", url.path)
-        if (url.query != nil) {
-            str = str + String(format:"?%@", url.query!)
-        }
-        str = str + String(format:" HTTP/1.1\r\nHost: %@", url.host!)
-        let port = url.scheme!.starts(with:"https") ? 443 : 80
-        str = str + String(format:":%d", port)
-        str = str + " \r\nConnection: close\r\n\r\n"
-        print("sending data:\n\(str)")
-        let data: Data? = str.data(using: .utf8)
-        sendAndReceive(data: data!) { (result) -> () in
-            if let r = result {
-                print("redirect found: \(r)")
-                self.openCheckUrl(link: r)
-            }
-        }
-    }
+    func openCheckUrl(link: String, completion: @escaping() -> ()) {
+         print("opening \(link)")
+         let url = URL(string: link)!
+         startConnection(url: url)
+         var str = String(format: "GET %@", url.path)
+         if (url.query != nil) {
+             str = str + String(format:"?%@", url.query!)
+         }
+         str = str + String(format:" HTTP/1.1\r\nHost: %@", url.host!)
+         let port = url.scheme!.starts(with:"https") ? 443 : 80
+         str = str + String(format:":%d", port)
+         str = str + " \r\nConnection: close\r\n\r\n"
+         print("sending data:\n\(str)")
+         let data: Data? = str.data(using: .utf8)
+         sendAndReceive(data: data!) { (result) -> () in
+             if let r = result {
+                 print("redirect found: \(r)")
+                self.openCheckUrl(link: r, completion: completion)
+             } else {
+                print("openCheckUrl done")
+                completion();
+             }
+         }
+     }
 }
 
 
