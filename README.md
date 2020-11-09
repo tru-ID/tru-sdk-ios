@@ -27,8 +27,8 @@ let package = Package(
 
 ```swift
 import TruSDK
-let truSdk: TruSDK = TruSDK()
-truSdk.openCheckUrl(url: url, completion: completion)
+let tru: TruSDK = TruSDK()
+tru.openCheckUrl(url: url, completion: completion)
 ```
 
 ## Release History
@@ -37,7 +37,8 @@ truSdk.openCheckUrl(url: url, completion: completion)
     * Work in progress
 * 0.0.2
     * RedirectManager openCheckUrl completion support
-        
+* 0.0.3
+    * Naming       
 
 ## Meta
 
