@@ -1,4 +1,4 @@
-# Trusdk
+# TruSDK
 
 iOS SDK for tru.ID: Blazingly fast phone verification. Exposes APIs for instant, invisible strong authentication.
 
@@ -26,8 +26,8 @@ let package = Package(
 
 
 ```swift
-import Trusdk
-let truSdk: TruSdk = TruSdk()
+import TruSDK
+let truSdk: TruSDK = TruSDK()
 truSdk.openCheckUrl(url: url, completion: completion)
 ```
 

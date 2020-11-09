@@ -1,5 +1,5 @@
 @available(iOS 12.0, *)
-open class TruSdk {
+open class TruSDK {
     
     var redirectManager: RedirectManager = RedirectManager();
     

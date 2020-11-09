@@ -1,5 +1,5 @@
 import XCTest
-@testable import Trusdk
+@testable import TruSDK
 
 final class TrusdkTests: XCTestCase {
     func testExample() {

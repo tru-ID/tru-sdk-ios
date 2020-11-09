@@ -1,5 +1,5 @@
 Pod::Spec.new do |spec|
-    spec.name         = "truSDK"
+    spec.name         = "TruSDK"
     spec.version      = "0.0.2"
     spec.summary      = "SDK for tru.ID"
     spec.description  = <<-DESC
@@ -13,6 +13,6 @@ Pod::Spec.new do |spec|
     spec.platforms = { :ios => "12.0" }
     spec.swift_version = "5.3"
     spec.source       = { :git => "https://gitlab.com/tru-id/tru-sdk-ios.git", :tag => "#{spec.version}" }
-    spec.source_files  = "Sources/Trusdk/**/*.swift"
+    spec.source_files  = "Sources/TruSDK/**/*.swift"
     spec.xcconfig = { "SWIFT_VERSION" => "5.3" }
 end
