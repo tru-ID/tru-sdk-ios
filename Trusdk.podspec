@@ -1,5 +1,5 @@
 Pod::Spec.new do |spec|
-    spec.name         = "TruSDK"
+    spec.name         = "Trusdk"
     spec.version      = "0.0.2"
     spec.summary      = "SDK for tru.ID"
     spec.description  = <<-DESC
