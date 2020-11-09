@@ -47,15 +47,17 @@ class RedirectManager {
         connection?.stateUpdateHandler = { (newState) in
             switch (newState) {
                 case .ready:
-                    print("State: Ready \(self.connection.debugDescription)\n")
+                    print("Connection State: Ready \(self.connection.debugDescription)\n")
                 case .setup:
-                    print("State: Setup\n")
+                    print("Connection State: Setup\n")
                 case .cancelled:
-                    print("State: Cancelled\n")
+                    print("Connection State: Cancelled\n")
                 case .preparing:
-                    print("State: Preparing\n")
+                    print("Connection State: Preparing\n")
                 default:
-                    print("ERROR! State not defined!\n")
+                    print("Connection ERROR State not defined\n")
+                    self.connection?.cancel()
+                    break
             }
         }
         connection?.start(queue: .main)
@@ -71,6 +73,7 @@ class RedirectManager {
               print("Receive isComplete: " + isComplete.description)
               guard let d = data else {
                   print("Error: Received nil Data")
+                  completion(nil)
                   return
               }
               let r = String(data: d, encoding: .utf8)!
@@ -93,27 +96,30 @@ class RedirectManager {
         return nil
     }
 
-    func openCheckUrl(link: String) {
-        print("opening \(link)")
-        let url = URL(string: link)!
-        startConnection(url: url)
-        var str = String(format: "GET %@", url.path)
-        if (url.query != nil) {
-            str = str + String(format:"?%@", url.query!)
-        }
-        str = str + String(format:" HTTP/1.1\r\nHost: %@", url.host!)
-        let port = url.scheme!.starts(with:"https") ? 443 : 80
-        str = str + String(format:":%d", port)
-        str = str + " \r\nConnection: close\r\n\r\n"
-        print("sending data:\n\(str)")
-        let data: Data? = str.data(using: .utf8)
-        sendAndReceive(data: data!) { (result) -> () in
-            if let r = result {
-                print("redirect found: \(r)")
-                self.openCheckUrl(link: r)
-            }
-        }
-    }
+    func openCheckUrl(link: String, completion: @escaping() -> ()) {
+         print("opening \(link)")
+         let url = URL(string: link)!
+         startConnection(url: url)
+         var str = String(format: "GET %@", url.path)
+         if (url.query != nil) {
+             str = str + String(format:"?%@", url.query!)
+         }
+         str = str + String(format:" HTTP/1.1\r\nHost: %@", url.host!)
+         let port = url.scheme!.starts(with:"https") ? 443 : 80
+         str = str + String(format:":%d", port)
+         str = str + " \r\nConnection: close\r\n\r\n"
+         print("sending data:\n\(str)")
+         let data: Data? = str.data(using: .utf8)
+         sendAndReceive(data: data!) { (result) -> () in
+             if let r = result {
+                 print("redirect found: \(r)")
+                self.openCheckUrl(link: r, completion: completion)
+             } else {
+                print("openCheckUrl done")
+                completion();
+             }
+         }
+     }
 }
 
 
