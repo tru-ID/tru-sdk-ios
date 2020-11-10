@@ -1,12 +1,12 @@
 Pod::Spec.new do |spec|
-    spec.name         = "Trusdk"
+    spec.name         = "tru-sdk-ios"
     spec.version      = "0.0.3"
     spec.summary      = "SDK for tru.ID"
     spec.description  = <<-DESC
     iOS SDK for tru.id: Blazingly fast phone verification.
     Exposes APIs for instant, invisible strong authentication.
     DESC
-    spec.homepage     = "https://tru.id/"
+    spec.homepage     = "https://gitlab.com/tru-id/tru-sdk-ios"
     spec.license      = { :type => "MIT", :file => "LICENSE.md" }
     spec.author             = { "author" => "eric@tru.id" }
     spec.documentation_url = "https://gitlab.com/tru-id/tru-sdk-ios/-/blob/master/README.md"
