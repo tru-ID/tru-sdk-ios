@@ -1,12 +1,10 @@
-# TruSDK
+# tru-sdk-ios
 
 iOS SDK for tru.ID: Blazingly fast phone verification. Exposes APIs for instant, invisible strong authentication.
 
 [![Swift Version][swift-image]][swift-url]
 [![License][license-image]][license-url]
 
-
-![](head.png)
 
 ## Installation
 
@@ -17,7 +15,7 @@ import PackageDescription
 
 let package = Package(
     dependencies: [
-        .Package(url: "https://gitlab.com/4auth/devx/tru-sdk-ios.git", majorVersion: 0, minor: 0)
+        .Package(url: "https://gitlab.com/tru-id/tru-sdk-ios.git", majorVersion: 0, minor: 0)
     ]
 )
 ```
@@ -38,13 +36,15 @@ tru.openCheckUrl(url: url, completion: completion)
 * 0.0.2
     * RedirectManager openCheckUrl completion support
 * 0.0.3
-    * Naming       
+    * Refactoring     
+* 0.0.4
+    * Naming   
 
 ## Meta
 
 Distributed under the MIT license. See ``LICENSE`` for more information.
 
-[https://github.com/yourname/github-link](https://github.com/dbader/)
+[https://github.com/tru-ID](https://github.com/tru-ID)
 
 [swift-image]:https://img.shields.io/badge/swift-5.0-green.svg
 [swift-url]: https://swift.org/
