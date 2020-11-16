@@ -86,10 +86,11 @@ class RedirectManager {
         let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
         print("\n----\nparseRedirect status: \(status)")
         if (status == "302") {
-            if let range = response.range(of: #"Location: (.*)\r\n"#,
+            //header could be named "Location" or "location"
+            if let range = response.range(of: #"ocation: (.*)\r\n"#,
             options: .regularExpression) {
                 let location = response[range];
-                let redirect = location[location.index(location.startIndex, offsetBy: 10)..<location.index(location.endIndex, offsetBy: -1)]
+                let redirect = location[location.index(location.startIndex, offsetBy: 9)..<location.index(location.endIndex, offsetBy: -1)]
                 return String(redirect)
             }
         }
@@ -112,10 +113,12 @@ class RedirectManager {
          let data: Data? = str.data(using: .utf8)
          sendAndReceive(data: data!) { (result) -> () in
              if let r = result {
-                 print("redirect found: \(r)")
+                print("redirect found: \(r)")
+                self.connection?.cancel()
                 self.openCheckUrl(link: r, completion: completion)
              } else {
                 print("openCheckUrl done")
+                self.connection?.cancel()
                 completion();
              }
          }
