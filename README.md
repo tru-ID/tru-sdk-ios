@@ -40,7 +40,9 @@ tru.openCheckUrl(url: url, completion: completion)
 * 0.0.4
     * Naming   
 * 0.0.5
-    * Cleanup   
+    * Cleanup 
+* 0.0.6
+    * Logging  
 
 ## Meta
 

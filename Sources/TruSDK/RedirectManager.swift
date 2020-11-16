@@ -16,15 +16,15 @@ class RedirectManager {
         let pathMonitor = NWPathMonitor()
         pathMonitor.pathUpdateHandler = { path in
             if path.usesInterfaceType(.wifi) {
-                print("Path is Wi-Fi")
+                NSLog("Path is Wi-Fi")
             } else if path.usesInterfaceType(.cellular) {
-                print("Path is Cellular")
+                NSLog("Path is Cellular")
             } else if path.usesInterfaceType(.wiredEthernet) {
-                print("Path is Wired Ethernet")
+                NSLog("Path is Wired Ethernet")
             } else if path.usesInterfaceType(.loopback) {
-                print("Path is Loopback")
+                NSLog("Path is Loopback")
             } else if path.usesInterfaceType(.other) {
-                print("Path is other")
+                NSLog("Path is other")
             }
         }
         pathMonitor.start(queue: .main)
@@ -36,7 +36,7 @@ class RedirectManager {
             port = 443
             tlsOptions = .init()
         }
-        print("connection scheme \(url.scheme!) \(port)")
+        NSLog("connection scheme \(url.scheme!) \(port)")
         // force network connection to cellular only
         let params = NWParameters(tls: tlsOptions , tcp: tcpOptions)
         params.requiredInterfaceType = .cellular
@@ -47,15 +47,15 @@ class RedirectManager {
         connection?.stateUpdateHandler = { (newState) in
             switch (newState) {
                 case .ready:
-                    print("Connection State: Ready \(self.connection.debugDescription)\n")
+                    NSLog("Connection State: Ready \(self.connection.debugDescription)\n")
                 case .setup:
-                    print("Connection State: Setup\n")
+                    NSLog("Connection State: Setup\n")
                 case .cancelled:
-                    print("Connection State: Cancelled\n")
+                    NSLog("Connection State: Cancelled\n")
                 case .preparing:
-                    print("Connection State: Preparing\n")
+                    NSLog("Connection State: Preparing\n")
                 default:
-                    print("Connection ERROR State not defined\n")
+                    NSLog("Connection ERROR State not defined\n")
                     self.connection?.cancel()
                     break
             }
@@ -66,31 +66,31 @@ class RedirectManager {
     private func sendAndReceive(data: Data, completion: @escaping (String?) -> ()) {
         self.connection!.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
-                print("Sending error \(err)")
+                NSLog("Sending error \(err)")
             }
         }))
         self.connection!.receiveMessage { data, context, isComplete, error in
-              print("Receive isComplete: " + isComplete.description)
-              guard let d = data else {
-                  print("Error: Received nil Data")
-                  completion(nil)
-                  return
-              }
-              let r = String(data: d, encoding: .utf8)!
-              print(r)
-              completion(self.parseRedirect(response: r))
+            NSLog("Receive isComplete: " + isComplete.description)
+            guard let d = data else {
+                NSLog("Error: Received nil Data")
+                completion(nil)
+                return
+            }
+            let r = String(data: d, encoding: .utf8)!
+            NSLog(r)
+            completion(self.parseRedirect(response: r))
         }
     }
     
     private func parseRedirect(response: String) -> String? {
         let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
-        print("\n----\nparseRedirect status: \(status)")
+        NSLog("\n----\nparseRedirect status: \(status)")
         if (status == "302") {
             //header could be named "Location" or "location"
-            if let range = response.range(of: #"ocation: (.*)\r\n"#,
+            if let range = response.lowercased().range(of: #"Location: (.*)\r\n"#,
             options: .regularExpression) {
                 let location = response[range];
-                let redirect = location[location.index(location.startIndex, offsetBy: 9)..<location.index(location.endIndex, offsetBy: -1)]
+                let redirect = location[location.index(location.startIndex, offsetBy: 10)..<location.index(location.endIndex, offsetBy: -1)]
                 return String(redirect)
             }
         }
@@ -98,7 +98,7 @@ class RedirectManager {
     }
 
     func openCheckUrl(link: String, completion: @escaping() -> ()) {
-         print("opening \(link)")
+         NSLog("opening \(link)")
          let url = URL(string: link)!
          startConnection(url: url)
          var str = String(format: "GET %@", url.path)
@@ -109,15 +109,15 @@ class RedirectManager {
          let port = url.scheme!.starts(with:"https") ? 443 : 80
          str = str + String(format:":%d", port)
          str = str + " \r\nConnection: close\r\n\r\n"
-         print("sending data:\n\(str)")
+         NSLog("sending data:\n\(str)")
          let data: Data? = str.data(using: .utf8)
          sendAndReceive(data: data!) { (result) -> () in
              if let r = result {
-                print("redirect found: \(r)")
+                NSLog("redirect found: \(r)")
                 self.connection?.cancel()
                 self.openCheckUrl(link: r, completion: completion)
              } else {
-                print("openCheckUrl done")
+                NSLog("openCheckUrl done")
                 self.connection?.cancel()
                 completion();
              }
