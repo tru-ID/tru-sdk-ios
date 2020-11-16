@@ -77,7 +77,7 @@ class RedirectManager {
                 return
             }
             let r = String(data: d, encoding: .utf8)!
-            NSLog(r)
+            print(r)
             completion(self.parseRedirect(response: r))
         }
     }
