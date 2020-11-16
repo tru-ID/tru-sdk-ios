@@ -87,10 +87,10 @@ class RedirectManager {
         NSLog("\n----\nparseRedirect status: \(status)")
         if (status == "302") {
             //header could be named "Location" or "location"
-            if let range = response.lowercased().range(of: #"Location: (.*)\r\n"#,
+            if let range = response.range(of: #"ocation: (.*)\r\n"#,
             options: .regularExpression) {
                 let location = response[range];
-                let redirect = location[location.index(location.startIndex, offsetBy: 10)..<location.index(location.endIndex, offsetBy: -1)]
+                let redirect = location[location.index(location.startIndex, offsetBy: 9)..<location.index(location.endIndex, offsetBy: -1)]
                 return String(redirect)
             }
         }
