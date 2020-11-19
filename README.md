@@ -43,6 +43,8 @@ tru.openCheckUrl(url: url, completion: completion)
     * Cleanup 
 * 0.0.6
     * Logging  
+* 0.0.7
+    * Removing Port   
 
 ## Meta
 

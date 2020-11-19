@@ -106,9 +106,8 @@ class RedirectManager {
              str = str + String(format:"?%@", url.query!)
          }
          str = str + String(format:" HTTP/1.1\r\nHost: %@", url.host!)
-         let port = url.scheme!.starts(with:"https") ? 443 : 80
-         str = str + String(format:":%d", port)
-         str = str + " \r\nConnection: close\r\n\r\n"
+         str = str + "\r\nAccept: */*"
+         str = str + "\r\nConnection: close\r\n\r\n"
          NSLog("sending data:\n\(str)")
          let data: Data? = str.data(using: .utf8)
          sendAndReceive(data: data!) { (result) -> () in
