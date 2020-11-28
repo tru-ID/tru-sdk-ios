@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
     spec.name         = "tru-sdk-ios"
-    spec.version      = "0.0.7"
+    spec.version      = "0.0.8"
     spec.summary      = "SDK for tru.ID"
     spec.description  = <<-DESC
     iOS SDK for tru.ID: Silent phone verification.

@@ -87,7 +87,7 @@ class RedirectManager {
     private func parseRedirect(response: String) -> String? {
         let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
         NSLog("\n----\nparseRedirect status: \(status)")
-        if (status == "302") {
+        if (status == "302" || status == "307") {
             //header could be named "Location" or "location"
             if let range = response.range(of: #"ocation: (.*)\r\n"#,
             options: .regularExpression) {

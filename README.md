@@ -45,6 +45,9 @@ tru.openCheckUrl(url: url, completion: completion)
     * Logging  
 * 0.0.7
     * Removing Port   
+* 0.0.8
+    * 307 Temporary Redirect support  
+
 
 ## Meta
 
