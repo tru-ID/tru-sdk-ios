@@ -16,24 +16,26 @@ class RedirectManager {
         let pathMonitor = NWPathMonitor()
         pathMonitor.pathUpdateHandler = { path in
             if path.usesInterfaceType(.wifi) {
-                NSLog("Path is Wi-Fi")
+                print("Path is Wi-Fi")
             } else if path.usesInterfaceType(.cellular) {
-                NSLog("Path is Cellular")
+                print("Path is Cellular ipv4 \(path.supportsIPv4) ipv6 \(path.supportsIPv6)")
             } else if path.usesInterfaceType(.wiredEthernet) {
-                NSLog("Path is Wired Ethernet")
+                print("Path is Wired Ethernet")
             } else if path.usesInterfaceType(.loopback) {
-                NSLog("Path is Loopback")
+                print("Path is Loopback")
             } else if path.usesInterfaceType(.other) {
-                NSLog("Path is other")
+                print("Path is other")
             }
         }
         pathMonitor.start(queue: .main)
         
         let tcpOptions = NWProtocolTCP.Options()
+        tcpOptions.connectionTimeout = 5
+
         var tlsOptions: NWProtocolTLS.Options?
-        var port = 80
+        var port = NWEndpoint.Port.http
         if (url.scheme!.starts(with:"https")) {
-            port = 443
+            port = NWEndpoint.Port.https
             tlsOptions = .init()
         }
         NSLog("connection scheme \(url.scheme!) \(port)")
@@ -43,7 +45,7 @@ class RedirectManager {
         params.prohibitExpensivePaths = false
         params.prohibitedInterfaceTypes = [.wifi]
         // create network connection
-        connection = NWConnection(host: NWEndpoint.Host(url.host!), port: NWEndpoint.Port(rawValue: UInt16(port))!, using: params)
+        connection = NWConnection(host: NWEndpoint.Host(url.host!), port: port, using: params)
         connection?.stateUpdateHandler = { (newState) in
             switch (newState) {
                 case .ready:
@@ -85,7 +87,7 @@ class RedirectManager {
     private func parseRedirect(response: String) -> String? {
         let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
         NSLog("\n----\nparseRedirect status: \(status)")
-        if (status == "302") {
+        if (status == "302" || status == "307") {
             //header could be named "Location" or "location"
             if let range = response.range(of: #"ocation: (.*)\r\n"#,
             options: .regularExpression) {
