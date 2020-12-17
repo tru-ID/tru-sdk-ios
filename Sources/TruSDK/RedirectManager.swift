@@ -99,7 +99,7 @@ class RedirectManager {
         return nil
     }
 
-    func openCheckUrl(link: String, completion: @escaping() -> ()) {
+    func openCheckUrl(link: String, completion: @escaping(Any?) -> Void) {
          NSLog("opening \(link)")
          let url = URL(string: link)!
          startConnection(url: url)
@@ -120,7 +120,7 @@ class RedirectManager {
              } else {
                 NSLog("openCheckUrl done")
                 self.connection?.cancel()
-                completion();
+                completion({});
              }
          }
      }

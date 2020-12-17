@@ -5,7 +5,7 @@ open class TruSDK {
     
     public init() {}
 
-    public func openCheckUrl(url: String , completion: @escaping () -> ()) {
+    public func openCheckUrl(url: String , completion: @escaping (Any?) -> Void) {
         redirectManager.openCheckUrl(link: url, completion: completion)
     }
 }
