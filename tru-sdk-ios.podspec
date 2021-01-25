@@ -13,5 +13,6 @@ Pod::Spec.new do |spec|
     spec.swift_version = "5.3"
     spec.source       = { :git => "https://gitlab.com/tru-id/tru-sdk-ios.git", :tag => "#{spec.version}" }
     spec.source_files  = "Sources/TruSDK/**/*.swift"
+    spec.resources  = "Sources/TruSDK/Resources/*.plist"
     spec.xcconfig = { "SWIFT_VERSION" => "5.3" }
 end
