@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import UIKit
 
 
 //
@@ -7,11 +8,21 @@ import Network
 // Open the "check url" and follows all redirects
 // we might switch from tls to non-tls between redirects
 //
+@available(OSX 10.14, *)
 @available(iOS 12.0, *)
 class RedirectManager {
-    
+        
+    var truSdkVersion: String!
     var connection: NWConnection?
 
+    public init() {
+        if let path = Bundle.module.path(forResource:"tru", ofType: "plist") {
+            var dictRoot: NSDictionary?
+            dictRoot = NSDictionary(contentsOfFile: path)
+            truSdkVersion = dictRoot?.value(forKeyPath: "version") as? String
+        }
+    }
+    
     private func startConnection(url: URL) {
         let pathMonitor = NWPathMonitor()
         pathMonitor.pathUpdateHandler = { path in
@@ -31,6 +42,7 @@ class RedirectManager {
         
         let tcpOptions = NWProtocolTCP.Options()
         tcpOptions.connectionTimeout = 5
+        tcpOptions.enableKeepalive = false
 
         var tlsOptions: NWProtocolTLS.Options?
         var port = NWEndpoint.Port.http
@@ -71,16 +83,14 @@ class RedirectManager {
                 NSLog("Sending error \(err)")
             }
         }))
-        self.connection!.receiveMessage { data, context, isComplete, error in
+        // only reading the first 4Kb to retreive the Status & Location headers, not interested in the body
+        self.connection!.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, isComplete, error in
             NSLog("Receive isComplete: " + isComplete.description)
-            guard let d = data else {
-                NSLog("Error: Received nil Data")
-                completion(nil)
-                return
+            if let d = data, !d.isEmpty {
+                let r = String(data: d, encoding: .utf8)!
+                print(r)
+                completion(self.parseRedirect(response: r))
             }
-            let r = String(data: d, encoding: .utf8)!
-            print(r)
-            completion(self.parseRedirect(response: r))
         }
     }
     
@@ -108,6 +118,8 @@ class RedirectManager {
              str = str + String(format:"?%@", url.query!)
          }
          str = str + String(format:" HTTP/1.1\r\nHost: %@", url.host!)
+         str = str + " \r\nUser-Agent: tru-sdk-ios/\(truSdkVersion!) "
+         str = str +  UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
          str = str + "\r\nAccept: */*"
          str = str + "\r\nConnection: close\r\n\r\n"
          NSLog("sending data:\n\(str)")
