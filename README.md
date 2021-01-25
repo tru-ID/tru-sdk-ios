@@ -49,6 +49,9 @@ tru.openCheckUrl(url: url, completion: completion)
     * 307 Temporary Redirect support  
 * 0.0.9
     * openCheckUrl completion changed 
+* 0.0.10
+    * receive instead of receiveMessage
+    * Custom User-Agent
 
 ## Meta
 
