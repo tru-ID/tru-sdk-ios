@@ -12,16 +12,8 @@ import UIKit
 @available(iOS 12.0, *)
 class RedirectManager {
         
-    var truSdkVersion: String!
+    var truSdkVersion = "0.0.10"
     var connection: NWConnection?
-
-    public init() {
-        if let path = Bundle.module.path(forResource:"tru", ofType: "plist") {
-            var dictRoot: NSDictionary?
-            dictRoot = NSDictionary(contentsOfFile: path)
-            truSdkVersion = dictRoot?.value(forKeyPath: "version") as? String
-        }
-    }
     
     private func startConnection(url: URL) {
         let pathMonitor = NWPathMonitor()
@@ -118,7 +110,7 @@ class RedirectManager {
              str = str + String(format:"?%@", url.query!)
          }
          str = str + String(format:" HTTP/1.1\r\nHost: %@", url.host!)
-         str = str + " \r\nUser-Agent: tru-sdk-ios/\(truSdkVersion!) "
+         str = str + " \r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
          str = str +  UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
          str = str + "\r\nAccept: */*"
          str = str + "\r\nConnection: close\r\n\r\n"
