@@ -51,7 +51,7 @@ tru.openCheckUrl(url: url, completion: completion)
     * openCheckUrl completion changed 
 * 0.0.10
     * receive instead of receiveMessage
-    * Custom User-Agent
+    * Custom User-Agent tru-sdk-ios/{version}
 
 ## Meta
 
