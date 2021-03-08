@@ -12,7 +12,7 @@ import UIKit
 @available(iOS 12.0, *)
 class RedirectManager {
         
-    var truSdkVersion = "0.0.10"
+    var truSdkVersion = "0.0.11"
     var connection: NWConnection?
     
     private func startConnection(url: URL) {
@@ -105,15 +105,7 @@ class RedirectManager {
          NSLog("opening \(link)")
          let url = URL(string: link)!
          startConnection(url: url)
-         var str = String(format: "GET %@", url.path)
-         if (url.query != nil) {
-             str = str + String(format:"?%@", url.query!)
-         }
-         str = str + String(format:" HTTP/1.1\r\nHost: %@", url.host!)
-         str = str + " \r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
-         str = str +  UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
-         str = str + "\r\nAccept: */*"
-         str = str + "\r\nConnection: close\r\n\r\n"
+         let str = createHttpCommand(url: url)
          NSLog("sending data:\n\(str)")
          let data: Data? = str.data(using: .utf8)
          sendAndReceive(data: data!) { (result) -> () in
@@ -128,6 +120,98 @@ class RedirectManager {
              }
          }
      }
+    
+    private func createHttpCommand(url: URL) -> String {
+        var cmd = String(format: "GET %@", url.path)
+        if (url.query != nil) {
+            cmd = cmd + String(format:"?%@", url.query!)
+        }
+        cmd = cmd + String(format:" HTTP/1.1\r\nHost: %@", url.host!)
+        cmd = cmd + " \r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
+        cmd = cmd +  UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
+        cmd = cmd + "\r\nAccept: */*"
+        cmd = cmd + "\r\nConnection: close\r\n\r\n"
+        return cmd;
+    }
+    
+    private func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> ()) {
+        self.connection!.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
+            if let err = error {
+                NSLog("Sending error \(err)")
+            }
+        }))
+        self.connection!.receiveMessage { data, context, isComplete, error in
+            NSLog("Receive isComplete: " + isComplete.description)
+            guard let d = data else {
+                NSLog("Error: Received nil Data")
+                completion(nil)
+                return
+            }
+            let r = String(data: d, encoding: .utf8)!
+            print(r)
+            completion(self.parseJsonResponse(response: r))
+        }
+    }
+    
+    private func parseJsonResponse(response: String) -> [String : Any]? {
+        let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
+        // check HTTP status
+        if (status == "200") {
+            if let rangeContentType = response.range(of: #"Content-Type: (.*)\r\n"#,
+            options: .regularExpression) {
+                // retreive content type
+                let contentType = response[rangeContentType];
+                let type = contentType[contentType.index(contentType.startIndex, offsetBy: 9)..<contentType.index(contentType.endIndex, offsetBy: -1)]
+                if (type.contains("application/json")) {
+                    // retreive content
+                    if let range = response.range(of: "\r\n\r\n") {
+                        let content = response[range.upperBound..<response.index(response.endIndex, offsetBy: 0)]
+                        let json = String(content)
+                        let data = json.data(using: .utf8)
+                        var dict: [String : Any]? = nil
+                        // load JSON response into a dictionary
+                        do {
+                            if let data = data {
+                                dict = try JSONSerialization.jsonObject(with: data, options: .mutableContainers) as? [String : Any]
+                            }
+                        } catch {
+                        }
+                        if let dict = dict {
+                             print("\(dict)")
+                        }
+                        return dict
+                    }
+                }
+            }
+        }
+        return nil
+    }
+    
+    func getJsonResponse(endPoint: String, completion:@escaping ([String : Any]?) -> ())  {
+        let url = URL(string: endPoint)!
+        startConnection(url: url)
+        let str = createHttpCommand(url: url)
+        NSLog("sending data:\n\(str)")
+        let data: Data? = str.data(using: .utf8)
+        sendAndReceiveDictionary(data: data!) { (result) -> () in
+            completion(result)
+        }
+    }
+    
+    func getJsonPropertyValue(endPoint: String, key: String, completion:@escaping  (String) -> ())  {
+        let url = URL(string: endPoint)!
+        startConnection(url: url)
+        let str = createHttpCommand(url: url)
+        NSLog("sending data:\n\(str)")
+        let data: Data? = str.data(using: .utf8)
+        sendAndReceiveDictionary(data: data!) { (result) -> () in
+            if let r = result {
+                completion(r[key] as? String ?? "")
+            } else {
+                completion("")
+            }
+        }
+    }
 }
 
 
