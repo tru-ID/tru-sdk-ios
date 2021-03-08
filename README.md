@@ -52,6 +52,9 @@ tru.openCheckUrl(url: url, completion: completion)
 * 0.0.10
     * receive instead of receiveMessage
     * Custom User-Agent tru-sdk-ios/{version}
+* 0.0.11
+    * Helper method to fetch a JSON from a GET method over a cellular connection
+
 
 ## Meta
 
