@@ -12,7 +12,7 @@ import UIKit
 @available(iOS 12.0, *)
 class RedirectManager {
         
-    var truSdkVersion = "0.0.11"
+    var truSdkVersion = "0.0.12"
     var connection: NWConnection?
     
     private func startConnection(url: URL) {
@@ -73,6 +73,7 @@ class RedirectManager {
         self.connection!.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 NSLog("Sending error \(err)")
+                completion(nil)
             }
         }))
         // only reading the first 4Kb to retreive the Status & Location headers, not interested in the body
@@ -89,7 +90,7 @@ class RedirectManager {
     private func parseRedirect(response: String) -> String? {
         let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
         NSLog("\n----\nparseRedirect status: \(status)")
-        if (status == "302" || status == "307") {
+        if (status == "301" || status == "302" || status == "303" || status == "307" || status == "308") {
             //header could be named "Location" or "location"
             if let range = response.range(of: #"ocation: (.*)\r\n"#,
             options: .regularExpression) {
@@ -138,6 +139,7 @@ class RedirectManager {
         self.connection!.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 NSLog("Sending error \(err)")
+                completion(nil)
             }
         }))
         self.connection!.receiveMessage { data, context, isComplete, error in
