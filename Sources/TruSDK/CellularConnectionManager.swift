@@ -187,7 +187,10 @@ class CellularConnectionManager {
         return Int(status) ?? 0
     }
 
-    // MARK: - Internal API
+}
+
+// MARK: - Internal API
+extension CellularConnectionManager: ConnectionManager {
 
     func openCheckUrl(link: String, completion: @escaping (Any?) -> Void) {
          NSLog("opening \(link)")
@@ -211,7 +214,6 @@ class CellularConnectionManager {
 
      }
 
-    
     func jsonResponse(endPoint: String, completion: @escaping ([String : Any]?) -> Void)  {
         guard let url = URL(string: endPoint) else {
             completion(nil)
@@ -255,6 +257,12 @@ class CellularConnectionManager {
             completion(value)
         }
     }
+}
+
+protocol ConnectionManager {
+    func openCheckUrl(link: String, completion: @escaping (Any?) -> Void)
+    func jsonResponse(endPoint: String, completion: @escaping ([String : Any]?) -> Void)
+    func jsonPropertyValue(for key: String, from endPoint: String, completion: @escaping (String) -> Void)
 }
 
 
