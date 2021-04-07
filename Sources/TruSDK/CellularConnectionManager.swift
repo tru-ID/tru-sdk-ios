@@ -12,7 +12,7 @@ import Network
 //
 @available(macOS 10.14, *)
 @available(iOS 13.0, *)
-class RedirectManager {
+class CellularConnectionManager {
         
     let truSdkVersion = "0.0.13"
     private var connection: NWConnection?

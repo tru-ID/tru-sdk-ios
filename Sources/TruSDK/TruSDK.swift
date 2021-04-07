@@ -2,7 +2,7 @@
 @available(iOS 13.0, *)
 open class TruSDK {
     
-    private let redirectManager = RedirectManager();
+    private let redirectManager = CellularConnectionManager();
 
     public func openCheckUrl(url: String , completion: @escaping (Any?) -> Void) {
         redirectManager.openCheckUrl(link: url, completion: completion)
