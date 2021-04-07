@@ -13,7 +13,7 @@ import Network
 @available(macOS 10.14, *)
 @available(iOS 13.0, *)
 class CellularConnectionManager {
-        
+
     let truSdkVersion = "0.0.13"
     private var connection: NWConnection?
 
@@ -58,18 +58,18 @@ class CellularConnectionManager {
         connection = NWConnection(host: NWEndpoint.Host(url.host!), port: port, using: params)
         connection?.stateUpdateHandler = { (newState) in
             switch (newState) {
-                case .ready:
-                    NSLog("Connection State: Ready \(self.connection.debugDescription)\n")
-                case .setup:
-                    NSLog("Connection State: Setup\n")
-                case .cancelled:
-                    NSLog("Connection State: Cancelled\n")
-                case .preparing:
-                    NSLog("Connection State: Preparing\n")
-                default:
-                    NSLog("Connection ERROR State not defined\n")
-                    self.connection?.cancel()
-                    break
+            case .ready:
+                NSLog("Connection State: Ready \(self.connection.debugDescription)\n")
+            case .setup:
+                NSLog("Connection State: Setup\n")
+            case .cancelled:
+                NSLog("Connection State: Cancelled\n")
+            case .preparing:
+                NSLog("Connection State: Preparing\n")
+            default:
+                NSLog("Connection ERROR State not defined\n")
+                self.connection?.cancel()
+                break
             }
         }
         //TODO: Not sure why we are listening these on main queue.
@@ -77,7 +77,7 @@ class CellularConnectionManager {
         connection?.start(queue: .main)
     }
 
-    private func sendAndReceive(data: Data, completion: @escaping (String?) -> Void) {
+    private func sendAndReceive(data: Data, completion: @escaping (URL?) -> Void) {
         self.connection!.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 NSLog("Sending error \(err)")
@@ -95,7 +95,7 @@ class CellularConnectionManager {
         }
     }
     
-    private func parseRedirect(response: String) -> String? {
+    private func parseRedirect(response: String) -> URL? {
         let status = httpStatusCode(response: response)
         NSLog("\n----\nparseRedirect status: \(status)")
         if 301...303 ~= status || 307...308 ~= status {
@@ -103,7 +103,7 @@ class CellularConnectionManager {
             if let range = response.range(of: #"ocation: (.*)\r\n"#, options: .regularExpression) {
                 let location = response[range];
                 let redirect = location[location.index(location.startIndex, offsetBy: 9)..<location.index(location.endIndex, offsetBy: -1)]
-                return String(redirect)
+                return URL(string: String(redirect))
             }
         }
         return nil
@@ -172,7 +172,7 @@ class CellularConnectionManager {
                         } catch {
                         }
                         if let dict = dict {
-                             print("\(dict)")
+                            print("\(dict)")
                         }
                         return dict
                     }
@@ -192,34 +192,28 @@ class CellularConnectionManager {
 // MARK: - Internal API
 extension CellularConnectionManager: ConnectionManager {
 
-    func openCheckUrl(link: String, completion: @escaping (Any?) -> Void) {
-         NSLog("opening \(link)")
-         let url = URL(string: link)!
-         startConnection(url: url)
-         let str = createHttpCommand(url: url)
-         NSLog("sending data:\n\(str)")
-         let data: Data? = str.data(using: .utf8)
+    func openCheckUrl(url: URL, completion: @escaping (Any?) -> Void) {
+        NSLog("opening \(url.absoluteString)")
+        startConnection(url: url)
+        let str = createHttpCommand(url: url)
+        NSLog("sending data:\n\(str)")
+        let data: Data? = str.data(using: .utf8)
 
-         sendAndReceive(data: data!) { (result) -> Void in
-             if let r = result {
+        sendAndReceive(data: data!) { (result) -> Void in
+            if let r = result {
                 NSLog("redirect found: \(r)")
                 self.connection?.cancel()
-                self.openCheckUrl(link: r, completion: completion)
-             } else {
+                self.openCheckUrl(url: r, completion: completion)
+            } else {
                 NSLog("openCheckUrl done")
                 self.connection?.cancel()
                 completion({});
-             }
-         }
-
-     }
-
-    func jsonResponse(endPoint: String, completion: @escaping ([String : Any]?) -> Void)  {
-        guard let url = URL(string: endPoint) else {
-            completion(nil)
-            return
+            }
         }
 
+    }
+
+    func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)  {
         startConnection(url: url)
         let str = createHttpCommand(url: url)
         NSLog("sending data:\n\(str)")
@@ -234,12 +228,7 @@ extension CellularConnectionManager: ConnectionManager {
         }
     }
 
-    func jsonPropertyValue(for key: String, from endPoint: String, completion: @escaping (String) -> Void)  {
-        guard let url = URL(string: endPoint) else {
-            completion("")
-            return
-        }
-
+    func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)  {
         startConnection(url: url)
         let str = createHttpCommand(url: url)
         NSLog("sending data:\n\(str)")
@@ -260,9 +249,9 @@ extension CellularConnectionManager: ConnectionManager {
 }
 
 protocol ConnectionManager {
-    func openCheckUrl(link: String, completion: @escaping (Any?) -> Void)
-    func jsonResponse(endPoint: String, completion: @escaping ([String : Any]?) -> Void)
-    func jsonPropertyValue(for key: String, from endPoint: String, completion: @escaping (String) -> Void)
+    func openCheckUrl(url: URL, completion: @escaping (Any?) -> Void)
+    func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)
+    func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)
 }
 
 
