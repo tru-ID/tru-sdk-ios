@@ -25,7 +25,7 @@ open class TruSDK {
         connectionManager.jsonPropertyValue(for: key, from: url, completion: completion)
     }
 
-    @available(*, deprecated, renamed: "check")
+    @available(*, deprecated, renamed: "check(url:completion:)")
     public func openCheckUrl(url: String , completion: @escaping (Any?) -> Void) {
         guard let url = URL(string: url) else {
             //TODO: We need to correct this, as this doesn't mean call is a success
@@ -35,7 +35,7 @@ open class TruSDK {
         connectionManager.openCheckUrl(url: url, completion: completion)
     }
 
-    @available(*, deprecated, renamed: "jsonResponse")
+    @available(*, deprecated, renamed: "jsonResponse(for:completion:)")
     public func getJsonResponse(url: String, completion: @escaping ([String : Any]?) -> Void) {
         guard let url = URL(string: url) else {
             completion(nil)
@@ -44,7 +44,7 @@ open class TruSDK {
         connectionManager.jsonResponse(url: url, completion: completion)
     }
 
-    @available(*, deprecated, renamed: "jsonPropertyValue")
+    @available(*, deprecated, renamed: "jsonPropertyValue(for:from:completion:)")
     public func getJsonPropertyValue(url: String, key: String, completion: @escaping  (String) -> Void) {
         guard let url = URL(string: url) else {
             // TODO: We need to return some thing meaningful
