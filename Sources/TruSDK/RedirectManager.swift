@@ -1,22 +1,26 @@
-import Foundation
-import Network
+#if canImport(UIKit)
 import UIKit
-
+#else
+import Foundation
+#endif
+import Network
 
 //
 // Force connectivity to cellular only
 // Open the "check url" and follows all redirects
-// we might switch from tls to non-tls between redirects
+// Redirect Manager might switch from tls to non-tls between redirects
 //
-@available(OSX 10.14, *)
-@available(iOS 12.0, *)
+@available(macOS 10.14, *)
+@available(iOS 13.0, *)
 class RedirectManager {
         
-    var truSdkVersion = "0.0.12"
-    var connection: NWConnection?
-    
+    let truSdkVersion = "0.0.13"
+    private var connection: NWConnection?
+
+    // MARK: - Private utility methods
     private func startConnection(url: URL) {
         let pathMonitor = NWPathMonitor()
+
         pathMonitor.pathUpdateHandler = { path in
             if path.usesInterfaceType(.wifi) {
                 print("Path is Wi-Fi")
@@ -30,10 +34,12 @@ class RedirectManager {
                 print("Path is other")
             }
         }
+
+        //TODO: Not sure why we are listening these on main queue.
         pathMonitor.start(queue: .main)
         
         let tcpOptions = NWProtocolTCP.Options()
-        tcpOptions.connectionTimeout = 5
+        tcpOptions.connectionTimeout = 5 //Secs
         tcpOptions.enableKeepalive = false
 
         var tlsOptions: NWProtocolTLS.Options?
@@ -66,10 +72,12 @@ class RedirectManager {
                     break
             }
         }
+        //TODO: Not sure why we are listening these on main queue.
+        // All connection events will be delivered on this queue.
         connection?.start(queue: .main)
     }
 
-    private func sendAndReceive(data: Data, completion: @escaping (String?) -> ()) {
+    private func sendAndReceive(data: Data, completion: @escaping (String?) -> Void) {
         self.connection!.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 NSLog("Sending error \(err)")
@@ -88,12 +96,11 @@ class RedirectManager {
     }
     
     private func parseRedirect(response: String) -> String? {
-        let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
+        let status = httpStatusCode(response: response)
         NSLog("\n----\nparseRedirect status: \(status)")
-        if (status == "301" || status == "302" || status == "303" || status == "307" || status == "308") {
+        if 301...303 ~= status || 307...308 ~= status {
             //header could be named "Location" or "location"
-            if let range = response.range(of: #"ocation: (.*)\r\n"#,
-            options: .regularExpression) {
+            if let range = response.range(of: #"ocation: (.*)\r\n"#, options: .regularExpression) {
                 let location = response[range];
                 let redirect = location[location.index(location.startIndex, offsetBy: 9)..<location.index(location.endIndex, offsetBy: -1)]
                 return String(redirect)
@@ -102,40 +109,27 @@ class RedirectManager {
         return nil
     }
 
-    func openCheckUrl(link: String, completion: @escaping(Any?) -> Void) {
-         NSLog("opening \(link)")
-         let url = URL(string: link)!
-         startConnection(url: url)
-         let str = createHttpCommand(url: url)
-         NSLog("sending data:\n\(str)")
-         let data: Data? = str.data(using: .utf8)
-         sendAndReceive(data: data!) { (result) -> () in
-             if let r = result {
-                NSLog("redirect found: \(r)")
-                self.connection?.cancel()
-                self.openCheckUrl(link: r, completion: completion)
-             } else {
-                NSLog("openCheckUrl done")
-                self.connection?.cancel()
-                completion({});
-             }
-         }
-     }
-    
     private func createHttpCommand(url: URL) -> String {
         var cmd = String(format: "GET %@", url.path)
+
         if (url.query != nil) {
-            cmd = cmd + String(format:"?%@", url.query!)
+            cmd += String(format:"?%@", url.query!)
         }
-        cmd = cmd + String(format:" HTTP/1.1\r\nHost: %@", url.host!)
-        cmd = cmd + " \r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
-        cmd = cmd +  UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
-        cmd = cmd + "\r\nAccept: */*"
-        cmd = cmd + "\r\nConnection: close\r\n\r\n"
+
+        cmd += String(format:" HTTP/1.1\r\nHost: %@", url.host!)
+        cmd += " \r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
+        #if canImport(UIKit)
+        cmd += UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
+        #elseif os(macOS)
+        cmd += "macOS / Unknown"
+        #endif
+        cmd += "\r\nAccept: */*"
+        cmd += "\r\nConnection: close\r\n\r\n"
+
         return cmd;
     }
     
-    private func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> ()) {
+    private func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void) {
         self.connection!.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 NSLog("Sending error \(err)")
@@ -156,16 +150,15 @@ class RedirectManager {
     }
     
     private func parseJsonResponse(response: String) -> [String : Any]? {
-        let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
+        let status = httpStatusCode(response: response)
         // check HTTP status
-        if (status == "200") {
-            if let rangeContentType = response.range(of: #"Content-Type: (.*)\r\n"#,
-            options: .regularExpression) {
-                // retreive content type
+        if (status == 200) {
+            if let rangeContentType = response.range(of: #"Content-Type: (.*)\r\n"#, options: .regularExpression) {
+                // retrieve content type
                 let contentType = response[rangeContentType];
                 let type = contentType[contentType.index(contentType.startIndex, offsetBy: 9)..<contentType.index(contentType.endIndex, offsetBy: -1)]
                 if (type.contains("application/json")) {
-                    // retreive content
+                    // retrieve content
                     if let range = response.range(of: "\r\n\r\n") {
                         let content = response[range.upperBound..<response.index(response.endIndex, offsetBy: 0)]
                         let json = String(content)
@@ -188,30 +181,78 @@ class RedirectManager {
         }
         return nil
     }
+
+    private func httpStatusCode(response: String) -> Int {
+        let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
+        return Int(status) ?? 0
+    }
+
+    // MARK: - Internal API
+
+    func openCheckUrl(link: String, completion: @escaping (Any?) -> Void) {
+         NSLog("opening \(link)")
+         let url = URL(string: link)!
+         startConnection(url: url)
+         let str = createHttpCommand(url: url)
+         NSLog("sending data:\n\(str)")
+         let data: Data? = str.data(using: .utf8)
+
+         sendAndReceive(data: data!) { (result) -> Void in
+             if let r = result {
+                NSLog("redirect found: \(r)")
+                self.connection?.cancel()
+                self.openCheckUrl(link: r, completion: completion)
+             } else {
+                NSLog("openCheckUrl done")
+                self.connection?.cancel()
+                completion({});
+             }
+         }
+
+     }
+
     
-    func getJsonResponse(endPoint: String, completion:@escaping ([String : Any]?) -> ())  {
-        let url = URL(string: endPoint)!
+    func jsonResponse(endPoint: String, completion: @escaping ([String : Any]?) -> Void)  {
+        guard let url = URL(string: endPoint) else {
+            completion(nil)
+            return
+        }
+
         startConnection(url: url)
         let str = createHttpCommand(url: url)
         NSLog("sending data:\n\(str)")
-        let data: Data? = str.data(using: .utf8)
-        sendAndReceiveDictionary(data: data!) { (result) -> () in
+
+        guard let data = str.data(using: .utf8) else {
+            completion(nil)
+            return
+        }
+
+        sendAndReceiveDictionary(data: data) { (result) -> () in
             completion(result)
         }
     }
-    
-    func getJsonPropertyValue(endPoint: String, key: String, completion:@escaping  (String) -> ())  {
-        let url = URL(string: endPoint)!
+
+    func jsonPropertyValue(for key: String, from endPoint: String, completion: @escaping (String) -> Void)  {
+        guard let url = URL(string: endPoint) else {
+            completion("")
+            return
+        }
+
         startConnection(url: url)
         let str = createHttpCommand(url: url)
         NSLog("sending data:\n\(str)")
-        let data: Data? = str.data(using: .utf8)
-        sendAndReceiveDictionary(data: data!) { (result) -> () in
-            if let r = result {
-                completion(r[key] as? String ?? "")
-            } else {
+
+        guard let data = str.data(using: .utf8) else {
+            completion("")
+            return
+        }
+
+        sendAndReceiveDictionary(data: data) { (result) -> () in
+            guard let r = result, let value = r[key] as? String else {
                 completion("")
+                return
             }
+            completion(value)
         }
     }
 }
