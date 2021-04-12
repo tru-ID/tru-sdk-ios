@@ -170,6 +170,7 @@ class CellularConnectionManager {
                                 dict = try JSONSerialization.jsonObject(with: data, options: .mutableContainers) as? [String : Any]
                             }
                         } catch {
+                            //TODO: Let's catch
                         }
                         if let dict = dict {
                             print("\(dict)")
@@ -179,6 +180,7 @@ class CellularConnectionManager {
                 }
             }
         }
+        
         return nil
     }
 
