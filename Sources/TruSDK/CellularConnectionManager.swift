@@ -22,21 +22,26 @@ class CellularConnectionManager {
         let pathMonitor = NWPathMonitor()
 
         pathMonitor.pathUpdateHandler = { path in
-            if path.usesInterfaceType(.wifi) {
-                print("Path is Wi-Fi")
-            } else if path.usesInterfaceType(.cellular) {
-                print("Path is Cellular ipv4 \(path.supportsIPv4) ipv6 \(path.supportsIPv6)")
-            } else if path.usesInterfaceType(.wiredEthernet) {
-                print("Path is Wired Ethernet")
-            } else if path.usesInterfaceType(.loopback) {
-                print("Path is Loopback")
-            } else if path.usesInterfaceType(.other) {
-                print("Path is other")
+            let interfaceTypes = path.availableInterfaces.map { $0.type }
+            for interfaceType in interfaceTypes {
+                switch interfaceType {
+                case .wifi:
+                    print("Path is Wi-Fi")
+                case .cellular:
+                    print("Path is Cellular ipv4 \(path.supportsIPv4) ipv6 \(path.supportsIPv6)")
+                case .wiredEthernet:
+                    print("Path is Wired Ethernet")
+                case .loopback:
+                    print("Path is Loopback")
+                case .other:
+                    print("Path is other")
+                default:
+                    print("Path is unknown")
+                }
             }
         }
 
-        //TODO: Not sure why we are listening these on main queue.
-        pathMonitor.start(queue: .main)
+        pathMonitor.start(queue: DispatchQueue(label: "tru.id.monitor"))
         
         let tcpOptions = NWProtocolTCP.Options()
         tcpOptions.connectionTimeout = 5 //Secs
@@ -48,7 +53,8 @@ class CellularConnectionManager {
             port = NWEndpoint.Port.https
             tlsOptions = .init()
         }
-        NSLog("connection scheme \(url.scheme!) \(port)")
+
+        TruIDLog(message: "connection scheme \(url.scheme!) \(port)")
         // force network connection to cellular only
         let params = NWParameters(tls: tlsOptions , tcp: tcpOptions)
         params.requiredInterfaceType = .cellular
@@ -59,15 +65,15 @@ class CellularConnectionManager {
         connection?.stateUpdateHandler = { (newState) in
             switch (newState) {
             case .ready:
-                NSLog("Connection State: Ready \(self.connection.debugDescription)\n")
+                TruIDLog(message: "Connection State: Ready \(self.connection.debugDescription)\n")
             case .setup:
-                NSLog("Connection State: Setup\n")
+                TruIDLog(message: "Connection State: Setup\n")
             case .cancelled:
-                NSLog("Connection State: Cancelled\n")
+                TruIDLog(message: "Connection State: Cancelled\n")
             case .preparing:
-                NSLog("Connection State: Preparing\n")
+                TruIDLog(message: "Connection State: Preparing\n")
             default:
-                NSLog("Connection ERROR State not defined\n")
+                TruIDLog(message: "Connection ERROR State not defined\n")
                 self.connection?.cancel()
                 break
             }
@@ -80,13 +86,13 @@ class CellularConnectionManager {
     private func sendAndReceive(data: Data, completion: @escaping (URL?) -> Void) {
         self.connection!.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
-                NSLog("Sending error \(err)")
+                TruIDLog(message: "Sending error \(err)")
                 completion(nil)
             }
         }))
         // only reading the first 4Kb to retreive the Status & Location headers, not interested in the body
         self.connection!.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, isComplete, error in
-            NSLog("Receive isComplete: " + isComplete.description)
+            TruIDLog(message: "Receive isComplete: " + isComplete.description)
             if let d = data, !d.isEmpty {
                 let r = String(data: d, encoding: .utf8)!
                 print(r)
@@ -97,11 +103,11 @@ class CellularConnectionManager {
     
     private func parseRedirect(response: String) -> URL? {
         let status = httpStatusCode(response: response)
-        NSLog("\n----\nparseRedirect status: \(status)")
+        TruIDLog(message: "\n----\nparseRedirect status: \(status)")
         if 301...303 ~= status || 307...308 ~= status {
             //header could be named "Location" or "location"
             if let range = response.range(of: #"ocation: (.*)\r\n"#, options: .regularExpression) {
-                let location = response[range];
+                let location = response[range]
                 let redirect = location[location.index(location.startIndex, offsetBy: 9)..<location.index(location.endIndex, offsetBy: -1)]
                 return URL(string: String(redirect))
             }
@@ -126,20 +132,20 @@ class CellularConnectionManager {
         cmd += "\r\nAccept: */*"
         cmd += "\r\nConnection: close\r\n\r\n"
 
-        return cmd;
+        return cmd
     }
     
     private func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void) {
         self.connection!.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
-                NSLog("Sending error \(err)")
+                TruIDLog(message: "Sending error \(err)")
                 completion(nil)
             }
         }))
         self.connection!.receiveMessage { data, context, isComplete, error in
-            NSLog("Receive isComplete: " + isComplete.description)
+            TruIDLog(message: "Receive isComplete: " + isComplete.description)
             guard let d = data else {
-                NSLog("Error: Received nil Data")
+                TruIDLog(message: "Error: Received nil Data")
                 completion(nil)
                 return
             }
@@ -155,7 +161,7 @@ class CellularConnectionManager {
         if (status == 200) {
             if let rangeContentType = response.range(of: #"Content-Type: (.*)\r\n"#, options: .regularExpression) {
                 // retrieve content type
-                let contentType = response[rangeContentType];
+                let contentType = response[rangeContentType]
                 let type = contentType[contentType.index(contentType.startIndex, offsetBy: 9)..<contentType.index(contentType.endIndex, offsetBy: -1)]
                 if (type.contains("application/json")) {
                     // retrieve content
@@ -171,6 +177,7 @@ class CellularConnectionManager {
                             }
                         } catch {
                             //TODO: Let's catch
+                            TruIDLog(message: "JSON serialisation error: \(error)")
                         }
                         if let dict = dict {
                             print("\(dict)")
@@ -195,21 +202,21 @@ class CellularConnectionManager {
 extension CellularConnectionManager: ConnectionManager {
 
     func openCheckUrl(url: URL, completion: @escaping (Any?) -> Void) {
-        NSLog("opening \(url.absoluteString)")
+        TruIDLog(message: "opening \(url.absoluteString)")
         startConnection(url: url)
         let str = createHttpCommand(url: url)
-        NSLog("sending data:\n\(str)")
+        TruIDLog(message: "sending data:\n\(str)")
         let data: Data? = str.data(using: .utf8)
 
         sendAndReceive(data: data!) { (result) -> Void in
             if let r = result {
-                NSLog("redirect found: \(r)")
+                TruIDLog(message: "redirect found: \(r)")
                 self.connection?.cancel()
                 self.openCheckUrl(url: r, completion: completion)
             } else {
-                NSLog("openCheckUrl done")
+                TruIDLog(message: "openCheckUrl done")
                 self.connection?.cancel()
-                completion({});
+                completion({})
             }
         }
 
@@ -218,7 +225,7 @@ extension CellularConnectionManager: ConnectionManager {
     func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)  {
         startConnection(url: url)
         let str = createHttpCommand(url: url)
-        NSLog("sending data:\n\(str)")
+        TruIDLog(message: "sending data:\n\(str)")
 
         guard let data = str.data(using: .utf8) else {
             completion(nil)
@@ -233,7 +240,7 @@ extension CellularConnectionManager: ConnectionManager {
     func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)  {
         startConnection(url: url)
         let str = createHttpCommand(url: url)
-        NSLog("sending data:\n\(str)")
+        TruIDLog(message: "sending data:\n\(str)")
 
         guard let data = str.data(using: .utf8) else {
             completion("")
@@ -248,6 +255,12 @@ extension CellularConnectionManager: ConnectionManager {
             completion(value)
         }
     }
+}
+
+func TruIDLog(message: String) {
+    #if DEBUG
+    NSLog("[Tru.Id SDK]: " + message)
+    #endif
 }
 
 protocol ConnectionManager {
