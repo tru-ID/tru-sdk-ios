@@ -78,7 +78,6 @@ class CellularConnectionManager {
                 break
             }
         }
-        //TODO: Not sure why we are listening these on main queue.
         // All connection events will be delivered on this queue.
         connection?.start(queue: .main)
     }
@@ -142,16 +141,17 @@ class CellularConnectionManager {
                 completion(nil)
             }
         }))
+
         self.connection!.receiveMessage { data, context, isComplete, error in
             TruIDLog(message: "Receive isComplete: " + isComplete.description)
             guard let d = data else {
-                TruIDLog(message: "Error: Received nil Data")
+                TruIDLog(message: "Error: Received nil data")
                 completion(nil)
                 return
             }
-            let r = String(data: d, encoding: .utf8)!
-            print(r)
-            completion(self.parseJsonResponse(response: r))
+            let response = String(data: d, encoding: .utf8)!
+            print(response)
+            completion(self.parseJsonResponse(response: response))
         }
     }
     
@@ -259,7 +259,7 @@ extension CellularConnectionManager: ConnectionManager {
 
 func TruIDLog(message: String) {
     #if DEBUG
-    NSLog("[Tru.Id SDK]: " + message)
+    NSLog("[Tru.Id SDK] " + message)
     #endif
 }
 
