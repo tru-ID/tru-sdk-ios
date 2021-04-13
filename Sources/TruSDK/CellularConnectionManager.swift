@@ -4,6 +4,7 @@ import UIKit
 import Foundation
 #endif
 import Network
+import os
 
 //
 // Force connectivity to cellular only
@@ -66,12 +67,16 @@ class CellularConnectionManager {
             switch (newState) {
             case .ready:
                 TruIDLog(message: "Connection State: Ready \(self.connection.debugDescription)\n")
+                os_log("Connection State: Ready %s", log: OSLog.default, type: .debug, self.connection.debugDescription)
             case .setup:
                 TruIDLog(message: "Connection State: Setup\n")
             case .cancelled:
                 TruIDLog(message: "Connection State: Cancelled\n")
             case .preparing:
                 TruIDLog(message: "Connection State: Preparing\n")
+            case .failed(let error):
+                TruIDLog(message: "Connection State: Failed ->\(error)")
+                self.connection?.cancel()
             default:
                 TruIDLog(message: "Connection ERROR State not defined\n")
                 self.connection?.cancel()
@@ -82,20 +87,25 @@ class CellularConnectionManager {
         connection?.start(queue: .main)
     }
 
-    private func sendAndReceive(data: Data, completion: @escaping (URL?) -> Void) {
+    private func sendAndReceive(data: Data, completion: @escaping (Result<URL?, NetworkError>) -> Void) {
         self.connection!.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
-                TruIDLog(message: "Sending error \(err)")
-                completion(nil)
+                os_log("Sending error %s", log: OSLog.default, type: .debug, err.localizedDescription)
+                completion(.failure(.other(err.localizedDescription)))
+
             }
         }))
         // only reading the first 4Kb to retreive the Status & Location headers, not interested in the body
         self.connection!.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, isComplete, error in
             TruIDLog(message: "Receive isComplete: " + isComplete.description)
             if let d = data, !d.isEmpty {
-                let r = String(data: d, encoding: .utf8)!
-                print(r)
-                completion(self.parseRedirect(response: r))
+                let response = String(data: d, encoding: .utf8)!
+                print(response)
+                guard let url = self.parseRedirect(response: response) else {
+                    completion(.failure(.invalidRedirectURL))
+                    return
+                }
+                completion(.success(url))
             }
         }
     }
@@ -209,15 +219,22 @@ extension CellularConnectionManager: ConnectionManager {
         let data: Data? = str.data(using: .utf8)
 
         sendAndReceive(data: data!) { (result) -> Void in
-            if let r = result {
-                TruIDLog(message: "redirect found: \(r)")
-                self.connection?.cancel()
-                self.openCheckUrl(url: r, completion: completion)
-            } else {
-                TruIDLog(message: "openCheckUrl done")
-                self.connection?.cancel()
+
+            switch result {
+            case .success(let url):
+                if let redirectURL = url {
+                    TruIDLog(message: "redirect found: \(redirectURL)")
+                    self.connection?.cancel()
+                    self.openCheckUrl(url: redirectURL, completion: completion)
+                } else {
+                    TruIDLog(message: "openCheckUrl done")
+                    self.connection?.cancel()
+                    completion({})
+                }
+            case .failure(let error):
                 completion({})
             }
+
         }
 
     }
@@ -267,6 +284,15 @@ protocol ConnectionManager {
     func openCheckUrl(url: URL, completion: @escaping (Any?) -> Void)
     func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)
     func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)
+}
+
+enum NetworkError: Error {
+    case other(String)
+    case invalidRedirectURL
+    case tooManyRedirects
+    case connectionFailed(String)
+    case httpNotOK
+    case noData
 }
 
 
