@@ -13,7 +13,8 @@ open class TruSDK {
         self.init(connectionManager: CellularConnectionManager())
     }
 
-    public func check(url: URL , completion: @escaping (Any?, Error?) -> Void) {
+    public func check(url: URL, completion: @escaping (Any?, Error?) -> Void) {
+        //TODO: We need to define a better contract and expectation, as this doesn't mean a call is a success
         connectionManager.openCheckUrl(url: url, completion: completion)
     }
 
@@ -28,7 +29,6 @@ open class TruSDK {
     @available(*, deprecated, renamed: "check(url:completion:)")
     public func openCheckUrl(url: String , completion: @escaping (Any?) -> Void) {
         guard let url = URL(string: url) else {
-            //TODO: We need to correct this, as this doesn't mean call is a success
             completion(nil)
             return
         }

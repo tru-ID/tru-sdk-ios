@@ -16,6 +16,7 @@ import os
 class CellularConnectionManager {
 
     let traceLog = OSLog(subsystem: "id.tru.sdk", category: "trace")
+    //os_log("", log: traceLog, type: .fault, "")
 
     let truSdkVersion = "0.0.13"
     private var connection: NWConnection?
@@ -37,7 +38,6 @@ class CellularConnectionManager {
             port = NWEndpoint.Port.https
             tlsOptions = .init()
         }
-        os_log("", log: traceLog, type: .fault, "")
         os_log("connection scheme %s %s", scheme, String(port.rawValue))
         // force network connection to cellular only
         let params = NWParameters(tls: tlsOptions , tcp: tcpOptions)
@@ -70,7 +70,7 @@ class CellularConnectionManager {
         connection?.start(queue: .main)
     }
 
-    private func sendAndReceive(data: Data, completion: @escaping (ConnectionResult<URL, NetworkError>) -> Void) {
+    private func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, NetworkError>) -> Void) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 os_log("Sending error %s", type: .error, err.localizedDescription)
@@ -98,7 +98,7 @@ class CellularConnectionManager {
 
                 switch status {
                 case 301...303, 307...308:
-                    guard let url = self.parseRedirect(response: response) else {
+                    guard let url = self.parseRedirect(requestUrl: requestUrl, response: response) else {
                         completion(.complete(.invalidRedirectURL))
                         return
                     }
@@ -118,12 +118,19 @@ class CellularConnectionManager {
         }
     }
     
-    private func parseRedirect(response: String) -> URL? {
+    private func parseRedirect(requestUrl: URL, response: String) -> URL? {
+        guard let _ = requestUrl.host else {
+            return nil
+        }
         //header could be named "Location" or "location"
         if let range = response.range(of: #"ocation: (.*)\r\n"#, options: .regularExpression) {
             let location = response[range]
             let redirect = location[location.index(location.startIndex, offsetBy: 9)..<location.index(location.endIndex, offsetBy: -1)]
-            return URL(string: String(redirect))
+            if let redirectURL =  URL(string: String(redirect)) {
+                return redirectURL.host == nil ? URL(string: redirectURL.path, relativeTo: requestUrl) : redirectURL
+            } else {
+                return nil
+            }
         }
         return nil
     }
@@ -281,7 +288,8 @@ extension CellularConnectionManager: ConnectionManager {
         let data = command.data(using: .utf8)
 
         //This method needs to be called after connection state == .ready
-        sendAndReceive(data: data!) { (result) -> Void in
+        //URL is guaranteed to have host and scheme at this point
+        sendAndReceive(requestUrl: url, data: data!) { (result) -> Void in
 
             switch result {
             case .redirect(let url):
