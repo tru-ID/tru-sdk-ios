@@ -22,6 +22,11 @@ final class TrusdkTests: XCTestCase {
 }
 
 class MockConnectionManager: ConnectionManager {
+    
+    func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void) {
+        //
+    }
+
     func openCheckUrl(url: URL, completion: @escaping (Any?) -> Void) {
         //
     }

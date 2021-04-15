@@ -13,7 +13,7 @@ open class TruSDK {
         self.init(connectionManager: CellularConnectionManager())
     }
 
-    public func check(url: URL , completion: @escaping (Any?) -> Void) {
+    public func check(url: URL , completion: @escaping (Any?, Error?) -> Void) {
         connectionManager.openCheckUrl(url: url, completion: completion)
     }
 
@@ -32,7 +32,12 @@ open class TruSDK {
             completion(nil)
             return
         }
-        connectionManager.openCheckUrl(url: url, completion: completion)
+        
+        let com: ((Any?, Error?) -> Void) = { (result, error) in
+            completion(result)
+        }
+
+        connectionManager.openCheckUrl(url: url, completion: com)
     }
 
     @available(*, deprecated, renamed: "jsonResponse(for:completion:)")

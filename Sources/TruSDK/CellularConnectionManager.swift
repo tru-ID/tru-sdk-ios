@@ -23,12 +23,17 @@ class CellularConnectionManager {
     //Mitigation for tcp timeout not triggering any events.
     private var timer: Timer?
     private let CONNECTION_TIME_OUT = 20.0
+    private var pathMonitor: NWPathMonitor?
 
     // MARK: - Private utility methods
-    private func startConnection(scheme: String, host: String) {
-        let pathMonitor = NWPathMonitor()
+    private func startMonitoring() {
 
-        pathMonitor.pathUpdateHandler = { path in
+        if let monitor = pathMonitor {
+            monitor.cancel()
+        }
+
+        pathMonitor = NWPathMonitor()
+        pathMonitor?.pathUpdateHandler = { path in
             let interfaceTypes = path.availableInterfaces.map { $0.type }
             for interfaceType in interfaceTypes {
                 switch interfaceType {
@@ -48,8 +53,17 @@ class CellularConnectionManager {
             }
         }
 
-        pathMonitor.start(queue: .main)
-        
+        pathMonitor?.start(queue: .main)
+    }
+
+    private func stopPathMonitor() {
+        if let monitor = pathMonitor {
+            monitor.cancel()
+            pathMonitor = nil
+        }
+    }
+
+    private func startConnection(scheme: String, host: String) {
         let tcpOptions = NWProtocolTCP.Options()
         tcpOptions.connectionTimeout = 5 //Secs
         tcpOptions.enableKeepalive = false
@@ -117,6 +131,7 @@ class CellularConnectionManager {
 
             }
         }))
+        
         // only reading the first 4Kb to retreive the Status & Location headers, not interested in the body
         connection?.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, isComplete, error in
 
@@ -248,19 +263,21 @@ class CellularConnectionManager {
 
 // MARK: - Internal API
 extension CellularConnectionManager: ConnectionManager {
-
-    func openCheckUrl(url: URL, completion: @escaping (Any?) -> Void) {
+    
+    func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void) {
         guard let scheme = url.scheme, let host = url.host else {
-            completion({})
+            completion(nil, nil)
             return
         }
 
         os_log("opening %s", url.absoluteString)
+        startMonitoring()
         startConnection(scheme: scheme, host: host)
         let command = createHttpCommand(url: url)
         os_log("sending data:\n%s", command)
         let data = command.data(using: .utf8)
 
+        //This method needs to be called after connection state == .ready
         sendAndReceive(data: data!) { (result) -> Void in
 
             switch result {
@@ -271,11 +288,13 @@ extension CellularConnectionManager: ConnectionManager {
                     self.openCheckUrl(url: redirectURL, completion: completion)
                 } else {
                     os_log("openCheckUrl done")
+                    self.stopPathMonitor()
                     self.connection?.cancel()
-                    completion({})
+                    completion(nil,nil)
                 }
-            case .failure(_):
-                completion({})
+            case .failure(let error):
+                self.stopPathMonitor()
+                completion(nil, error)
             }
 
         }
@@ -328,7 +347,7 @@ extension CellularConnectionManager: ConnectionManager {
 }
 
 protocol ConnectionManager {
-    func openCheckUrl(url: URL, completion: @escaping (Any?) -> Void)
+    func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void)
     func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)
     func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)
 }
