@@ -26,43 +26,6 @@ class CellularConnectionManager {
     private var pathMonitor: NWPathMonitor?
 
     // MARK: - Private utility methods
-    private func startMonitoring() {
-
-        if let monitor = pathMonitor {
-            monitor.cancel()
-        }
-
-        pathMonitor = NWPathMonitor()
-        pathMonitor?.pathUpdateHandler = { path in
-            let interfaceTypes = path.availableInterfaces.map { $0.type }
-            for interfaceType in interfaceTypes {
-                switch interfaceType {
-                case .wifi:
-                    os_log("Path is Wi-Fi")
-                case .cellular:
-                    os_log("Path is Cellular ipv4 %s ipv6 %s", path.supportsIPv4.description, path.supportsIPv6.description)
-                case .wiredEthernet:
-                    os_log("Path is Wired Ethernet")
-                case .loopback:
-                    os_log("Path is Loopback")
-                case .other:
-                    os_log("Path is other")
-                default:
-                    os_log("Path is unknown")
-                }
-            }
-        }
-
-        pathMonitor?.start(queue: .main)
-    }
-
-    private func stopPathMonitor() {
-        if let monitor = pathMonitor {
-            monitor.cancel()
-            pathMonitor = nil
-        }
-    }
-
     private func startConnection(scheme: String, host: String) {
         let tcpOptions = NWProtocolTCP.Options()
         tcpOptions.connectionTimeout = 5 //Secs
@@ -107,35 +70,23 @@ class CellularConnectionManager {
         connection?.start(queue: .main)
     }
 
-    func createTimer() {
-        if timer != nil {
-            timer?.invalidate()
-        }
-
-        timer = Timer.scheduledTimer(timeInterval: self.CONNECTION_TIME_OUT,
-                                    target: self,
-                                    selector: #selector(self.fireTimer),
-                                    userInfo: nil, repeats: false)
-    }
-
-    @objc func fireTimer() {
-        timer?.invalidate()
-        connection?.cancel()
-    }
-
-    private func sendAndReceive(data: Data, completion: @escaping (Result<URL?, NetworkError>) -> Void) {
+    private func sendAndReceive(data: Data, completion: @escaping (ConnectionResult<URL, NetworkError>) -> Void) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 os_log("Sending error %s", type: .error, err.localizedDescription)
-                completion(.failure(.other(err.localizedDescription)))
+                completion(.complete(.other(err.localizedDescription)))
 
             }
         }))
-        
+
         // only reading the first 4Kb to retreive the Status & Location headers, not interested in the body
-        connection?.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, isComplete, error in
+        connection?.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, context, isComplete, error in
 
             os_log("Receive isComplete: %s", isComplete.description)
+            if let err = error {
+                completion(.complete(.other(err.localizedDescription)))
+                return
+            }
 
             if let d = data, !d.isEmpty {
                 let response = String(data: d, encoding: .utf8)!
@@ -148,21 +99,21 @@ class CellularConnectionManager {
                 switch status {
                 case 301...303, 307...308:
                     guard let url = self.parseRedirect(response: response) else {
-                        completion(.failure(.invalidRedirectURL))
+                        completion(.complete(.invalidRedirectURL))
                         return
                     }
-                    completion(.success(url))
+                    completion(.redirect(url))
                 case 400...451:
-                    completion(.failure(.httpClient("HTTP Client Error:\(status)")))
+                    completion(.complete(.httpClient("HTTP Client Error:\(status)")))
                 case 500...511:
-                    completion(.failure(.httpServer("HTTP Server Error:\(status)")))
+                    completion(.complete(.httpServer("HTTP Server Error:\(status)")))
                 case 200...206:
-                    completion(.failure(.noRedirectURL))
+                    completion(.complete(nil))
                 default:
-                    completion(.failure(.other("HTTP Status can't be parsed \(status)")))
+                    completion(.complete(.other("HTTP Status can't be parsed \(status)")))
                 }
             } else {
-                completion(.failure(.noData))
+                completion(.complete(.noData))
             }
         }
     }
@@ -177,26 +128,6 @@ class CellularConnectionManager {
         return nil
     }
 
-    private func createHttpCommand(url: URL) -> String {
-        var cmd = String(format: "GET %@", url.path)
-
-        if (url.query != nil) {
-            cmd += String(format:"?%@", url.query!)
-        }
-
-        cmd += String(format:" HTTP/1.1\r\nHost: %@", url.host!)
-        cmd += " \r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
-        #if canImport(UIKit)
-        cmd += UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
-        #elseif os(macOS)
-        cmd += "macOS / Unknown"
-        #endif
-        cmd += "\r\nAccept: */*"
-        cmd += "\r\nConnection: close\r\n\r\n"
-
-        return cmd
-    }
-    
     private func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
@@ -254,11 +185,83 @@ class CellularConnectionManager {
         return nil
     }
 
+    private func createHttpCommand(url: URL) -> String {
+        var cmd = String(format: "GET %@", url.path)
+
+        if (url.query != nil) {
+            cmd += String(format:"?%@", url.query!)
+        }
+
+        cmd += String(format:" HTTP/1.1\r\nHost: %@", url.host!)
+        cmd += " \r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
+        #if canImport(UIKit)
+        cmd += UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
+        #elseif os(macOS)
+        cmd += "macOS / Unknown"
+        #endif
+        cmd += "\r\nAccept: */*"
+        cmd += "\r\nConnection: close\r\n\r\n"
+
+        return cmd
+    }
+
     private func httpStatusCode(response: String) -> Int {
         let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
         return Int(status) ?? 0
     }
 
+    func createTimer() {
+        if timer != nil {
+            timer?.invalidate()
+        }
+
+        timer = Timer.scheduledTimer(timeInterval: self.CONNECTION_TIME_OUT,
+                                    target: self,
+                                    selector: #selector(self.fireTimer),
+                                    userInfo: nil, repeats: false)
+    }
+
+    @objc func fireTimer() {
+        timer?.invalidate()
+        connection?.cancel()
+    }
+
+    private func startMonitoring() {
+
+        if let monitor = pathMonitor {
+            monitor.cancel()
+        }
+
+        pathMonitor = NWPathMonitor()
+        pathMonitor?.pathUpdateHandler = { path in
+            let interfaceTypes = path.availableInterfaces.map { $0.type }
+            for interfaceType in interfaceTypes {
+                switch interfaceType {
+                case .wifi:
+                    os_log("Path is Wi-Fi")
+                case .cellular:
+                    os_log("Path is Cellular ipv4 %s ipv6 %s", path.supportsIPv4.description, path.supportsIPv6.description)
+                case .wiredEthernet:
+                    os_log("Path is Wired Ethernet")
+                case .loopback:
+                    os_log("Path is Loopback")
+                case .other:
+                    os_log("Path is other")
+                default:
+                    os_log("Path is unknown")
+                }
+            }
+        }
+
+        pathMonitor?.start(queue: .main)
+    }
+
+    private func stopPathMonitor() {
+        if let monitor = pathMonitor {
+            monitor.cancel()
+            pathMonitor = nil
+        }
+    }
 }
 
 // MARK: - Internal API
@@ -281,19 +284,14 @@ extension CellularConnectionManager: ConnectionManager {
         sendAndReceive(data: data!) { (result) -> Void in
 
             switch result {
-            case .success(let url):
-                if let redirectURL = url {
-                    os_log("redirect found: %s", redirectURL.absoluteString)
-                    self.connection?.cancel()
-                    self.openCheckUrl(url: redirectURL, completion: completion)
-                } else {
-                    os_log("openCheckUrl done")
-                    self.stopPathMonitor()
-                    self.connection?.cancel()
-                    completion(nil,nil)
-                }
-            case .failure(let error):
+            case .redirect(let url):
+                os_log("redirect found: %s", url.absoluteString)
+                self.connection?.cancel()
+                self.openCheckUrl(url: url, completion: completion)
+            case .complete(let error):
+                os_log("openCheckUrl is done")
                 self.stopPathMonitor()
+                self.connection?.cancel()
                 completion(nil, error)
             }
 
@@ -352,16 +350,20 @@ protocol ConnectionManager {
     func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)
 }
 
+enum ConnectionResult<URL, Failure> where Failure: Error {
+    case complete(Failure?)
+    case redirect(URL)
+}
+
 enum NetworkError: Error {
-    case other(String)
     case invalidRedirectURL
     case tooManyRedirects
-    case noRedirectURL
     case connectionFailed(String)
     case connectionCantBeCreated(String)
     case noData
     case httpClient(String)
     case httpServer(String)
+    case other(String)
 }
 
 
