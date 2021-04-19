@@ -14,12 +14,13 @@ final class TrusdkCheckTests: XCTestCase {
 
     static var allTests = [
         ("testCheck_ShouldComplete_WithoutErrors", testCheck_ShouldComplete_WithoutErrors),
-        ("testCheck_3Redirects_ShouldComplete_WithoutErrors", testCheck_3Redirects_ShouldComplete_WithoutErrors),
-        ("testCheck_3Redirects_With_RelativePath_ShouldComplete_WithError", testCheck_3Redirects_With_RelativePath_ShouldComplete_WithError),
+        ("testCheck_ShouldComplete_WithError_AfterRedirect", testCheck_ShouldComplete_WithError_AfterRedirect),
+        ("testCheck_3Redirects_ShouldComplete_WithoutErrors", testCheck_3Redirects_ShouldComplete_WithoutError),
+        ("testCheck_3Redirects_WithRelativePath_ShouldComplete_WithError", testCheck_3Redirects_WithRelativePath_ShouldComplete_WithError),
         ("testCheck_StartsStopConnectionCalls_ShouldBeInCorrectOrder", testCheck_StartsStopConnectionCalls_ShouldBeInCorrectOrder),
         ("testCheck_StartsStopConnectionCalls_ShouldBeInCorrectOrder_AfterRedirect",testCheck_StartsStopConnectionCalls_ShouldBeInCorrectOrder_AfterRedirect),
-        ("testCheck_WithNoSchemeOrHost_ShouldReturnError",testCheck_WithNoSchemeOrHost_ShouldReturnError),
-        ("testCheck_WithNoHTTPCommand_ShouldReturnError", testCheck_WithNoHTTPCommand_ShouldReturnError)
+        ("testCheck_WithNoSchemeOrHost_ShouldComplete_WithError",testCheck_WithNoSchemeOrHost_ShouldComplete_WithError),
+        ("testCheck_WithNoHTTPCommand_ShouldComplete_WithError", testCheck_WithNoHTTPCommand_ShouldComplete_WithError)
     ]
 
     override func setUpWithError() throws {
@@ -37,6 +38,7 @@ final class TrusdkCheckTests: XCTestCase {
 extension TrusdkCheckTests {
 
     func testCheck_ShouldComplete_WithoutErrors() {
+        //results will be processes from last to first
         let results: [ConnectionResult<URL, NetworkError>] = [
             .complete(nil),
             .redirect(URL(string: "https://www.tru.id")!)
@@ -44,8 +46,9 @@ extension TrusdkCheckTests {
 
         let mock = MockConnectionManager(result: results)
         let sdk = TruSDK(connectionManager: mock)
-        let expectation = self.expectation(description: "CheckURL Incorrect URL")
-        sdk.check(url: URL(string: "http://tru.id")!) { (result, error)  in
+
+        let expectation = self.expectation(description: "CheckURL straight execution path")
+        sdk.check(url: URL(string: "http://tru.id/check_url")!) { (result, error)  in
             XCTAssertNil(error)
             expectation.fulfill()
         }
@@ -55,19 +58,30 @@ extension TrusdkCheckTests {
         }
     }
 
-    func testCheck_3Redirects_ShouldComplete_WithoutErrors() {
+    func testCheck_ShouldComplete_WithError_AfterRedirect() {
+        runCheckTestWith(error: .other("Error when sending"))
+        runCheckTestWith(error: .other("Error when receiving"))
+        runCheckTestWith(error: .noData("Error when response is empty"))
+        runCheckTestWith(error: .invalidRedirectURL("Location is empty"))
+        runCheckTestWith(error: .httpClient("Error HTTP client"))
+        runCheckTestWith(error: .httpServer("Error HTTP server"))
+        runCheckTestWith(error: .other("Error when parsing HTTP status"))
+    }
+
+    func testCheck_3Redirects_ShouldComplete_WithoutError() {
         let startURL = URL(string: "http://tru.id")!
 
         let results: [ConnectionResult<URL, NetworkError>] = [
             .complete(nil),
-            .redirect(URL(string: "https://tru.id")!),
             .redirect(URL(string: "https://www.tru.id/uk")!),
-            .redirect(URL(string: "https://www.tru.id")!)
+            .redirect(URL(string: "https://www.tru.id")!),
+            .redirect(URL(string: "https://tru.id")!)
         ]
 
         let mock = MockConnectionManager(result: results)
         let sdk = TruSDK(connectionManager: mock)
-        let expectation = self.expectation(description: "CheckURL Incorrect URL")
+
+        let expectation = self.expectation(description: "3 Redirects")
         sdk.check(url: startURL) { (result, error)  in
             XCTAssertNil(error)
             expectation.fulfill()
@@ -78,17 +92,18 @@ extension TrusdkCheckTests {
         }
     }
 
-    func testCheck_3Redirects_With_RelativePath_ShouldComplete_WithError() {
+    func testCheck_3Redirects_WithRelativePath_ShouldComplete_WithError() {
         let startURL = URL(string: "http://tru.id")!
         let results: [ConnectionResult<URL, NetworkError>] = [
             .complete(nil),
-            .redirect(URL(string: "/uk")!), //This shouldn't happen, we are covering this in parseRedirect
+            .redirect(URL(string: "/uk")!), //This shouldn't happen, we are covering this in parseRedirect test
             .redirect(URL(string: "https://tru.id")!),
             .redirect(URL(string: "https://www.tru.id")!)
         ]
         let mock = MockConnectionManager(result: results)
         let sdk = TruSDK(connectionManager: mock)
-        let expectation = self.expectation(description: "CheckURL Incorrect URL")
+
+        let expectation = self.expectation(description: "3 Redirects, 1 of which is relative")
         sdk.check(url: startURL) { (result, error)  in
             XCTAssertNotNil(error)
             expectation.fulfill()
@@ -102,7 +117,8 @@ extension TrusdkCheckTests {
 
         let mock = MockConnectionManager(result: results)
         let sdk = TruSDK(connectionManager: mock)
-        let expectation = self.expectation(description: "CheckURL Incorrect URL")
+
+        let expectation = self.expectation(description: "Start/Stop connection calls")
         sdk.check(url: startURL) { (result, error)  in
             XCTAssertNil(error)
             expectation.fulfill()
@@ -122,7 +138,8 @@ extension TrusdkCheckTests {
 
         let mock = MockConnectionManager(result: results)
         let sdk = TruSDK(connectionManager: mock)
-        let expectation = self.expectation(description: "CheckURL Incorrect URL")
+
+        let expectation = self.expectation(description: "Start/Stop connection calls")
         sdk.check(url: startURL) { (result, error)  in
             XCTAssertNil(error)
             expectation.fulfill()
@@ -138,12 +155,13 @@ extension TrusdkCheckTests {
         XCTAssertEqual(callOrder[5], "stopMonitoring")
     }
 
-    func testCheck_WithNoSchemeOrHost_ShouldReturnError() {
+    func testCheck_WithNoSchemeOrHost_ShouldComplete_WithError() {
         let startURL = URL(string: "/")!
         let results: [ConnectionResult<URL, NetworkError>] = []
 
         let mock = MockConnectionManager(result: results)
         let sdk = TruSDK(connectionManager: mock)
+        
         let expectation = self.expectation(description: "No Scheme or Host")
         sdk.check(url: startURL) { (result, error)  in
             XCTAssertNotNil(error)
@@ -153,13 +171,14 @@ extension TrusdkCheckTests {
 
     }
 
-    func testCheck_WithNoHTTPCommand_ShouldReturnError() {
+    func testCheck_WithNoHTTPCommand_ShouldComplete_WithError() {
         let startURL = URL(string: "http://tru.id")!
         let results: [ConnectionResult<URL, NetworkError>] = []
 
         let mock = MockConnectionManager(result: results, shouldFailCreatingHttpCommand: true)
         let sdk = TruSDK(connectionManager: mock)
-        let expectation = self.expectation(description: "CheckURL Incorrect URL")
+
+        let expectation = self.expectation(description: "No HTTP Command")
         sdk.check(url: startURL) { (result, error)  in
             XCTAssertNotNil(error)
             expectation.fulfill()
@@ -167,4 +186,26 @@ extension TrusdkCheckTests {
         waitForExpectations(timeout: 3, handler: nil)
     }
 
+}
+
+extension TrusdkCheckTests {
+    func runCheckTestWith(error: NetworkError) {
+        let startURL = URL(string: "http://tru.id")!
+        let results: [ConnectionResult<URL, NetworkError>] = [
+            .complete(error),
+            .redirect(URL(string: "https://www.tru.id/uk")!)
+        ]
+
+        let mock = MockConnectionManager(result: results)
+        let sdk = TruSDK(connectionManager: mock)
+
+        let expectation = self.expectation(description: "Checking errors")
+        sdk.check(url: startURL) { (result, err)  in
+            XCTAssertNotNil(err)
+            XCTAssertEqual(error, err as! NetworkError)
+            expectation.fulfill()
+        }
+
+        waitForExpectations(timeout: 1, handler: nil)
+    }
 }

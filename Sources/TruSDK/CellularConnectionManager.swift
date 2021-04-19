@@ -99,7 +99,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 switch status {
                 case 301...303, 307...308:
                     guard let url = self.parseRedirect(requestUrl: requestUrl, response: response) else {
-                        completion(.complete(.invalidRedirectURL))
+                        completion(.complete(.invalidRedirectURL("Invalid URL - unable to parseRecirect")))
                         return
                     }
                     completion(.redirect(url))
@@ -113,7 +113,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                     completion(.complete(.other("HTTP Status can't be parsed \(status)")))
                 }
             } else {
-                completion(.complete(.noData))
+                completion(.complete(.noData("Response has no body")))
             }
         }
     }
@@ -382,11 +382,11 @@ enum ConnectionResult<URL, Failure> where Failure: Error {
 }
 
 enum NetworkError: Error, Equatable {
-    case invalidRedirectURL
+    case invalidRedirectURL(String)
     case tooManyRedirects
     case connectionFailed(String)
     case connectionCantBeCreated(String)
-    case noData
+    case noData(String)
     case httpClient(String)
     case httpServer(String)
     case other(String)
