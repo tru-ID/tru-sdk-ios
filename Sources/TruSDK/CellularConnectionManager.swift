@@ -13,12 +13,12 @@ import os
 //
 @available(macOS 10.14, *)
 @available(iOS 13.0, *)
-class CellularConnectionManager {
+class CellularConnectionManager: ConnectionManager, InternalAPI {
 
     let traceLog = OSLog(subsystem: "id.tru.sdk", category: "trace")
     //os_log("", log: traceLog, type: .fault, "")
 
-    let truSdkVersion = "0.0.13"
+    let truSdkVersion = "0.1.0"
     private var connection: NWConnection?
 
     //Mitigation for tcp timeout not triggering any events.
@@ -27,7 +27,7 @@ class CellularConnectionManager {
     private var pathMonitor: NWPathMonitor?
 
     // MARK: - Private utility methods
-    private func startConnection(scheme: String, host: String) {
+    func startConnection(scheme: String, host: String) {
         let tcpOptions = NWProtocolTCP.Options()
         tcpOptions.connectionTimeout = 5 //Secs
         tcpOptions.enableKeepalive = false
@@ -70,7 +70,7 @@ class CellularConnectionManager {
         connection?.start(queue: .main)
     }
 
-    private func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, NetworkError>) -> Void) {
+    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, NetworkError>) -> Void) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 os_log("Sending error %s", type: .error, err.localizedDescription)
@@ -117,8 +117,8 @@ class CellularConnectionManager {
             }
         }
     }
-    
-    private func parseRedirect(requestUrl: URL, response: String) -> URL? {
+
+    func parseRedirect(requestUrl: URL, response: String) -> URL? {
         guard let _ = requestUrl.host else {
             return nil
         }
@@ -135,7 +135,7 @@ class CellularConnectionManager {
         return nil
     }
 
-    private func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void) {
+    func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 os_log("Sending error %", type:.error, err.localizedDescription)
@@ -155,8 +155,8 @@ class CellularConnectionManager {
             completion(self.parseJsonResponse(response: response))
         }
     }
-    
-    private func parseJsonResponse(response: String) -> [String : Any]? {
+
+    func parseJsonResponse(response: String) -> [String : Any]? {
         let status = httpStatusCode(response: response)
         // check HTTP status
         if (status == 200) {
@@ -192,15 +192,19 @@ class CellularConnectionManager {
         return nil
     }
 
-    private func createHttpCommand(url: URL) -> String {
-        var cmd = String(format: "GET %@", url.path)
-
-        if (url.query != nil) {
-            cmd += String(format:"?%@", url.query!)
+    func createHttpCommand(url: URL) -> String? {
+        guard let host = url.host else {
+            return nil
         }
 
-        cmd += String(format:" HTTP/1.1\r\nHost: %@", url.host!)
-        cmd += " \r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
+        var cmd = String(format: "GET %@", url.path)
+
+        if let q = url.query {
+            cmd += String(format:"?%@", q)
+        }
+
+        cmd += String(format:" HTTP/1.1\r\nHost: %@", host)
+        cmd += "\r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
         #if canImport(UIKit)
         cmd += UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
         #elseif os(macOS)
@@ -217,7 +221,7 @@ class CellularConnectionManager {
         return Int(status) ?? 0
     }
 
-    func createTimer() {
+    private func createTimer() {
         if timer != nil {
             timer?.invalidate()
         }
@@ -233,7 +237,7 @@ class CellularConnectionManager {
         connection?.cancel()
     }
 
-    private func startMonitoring() {
+    func startMonitoring() {
 
         if let monitor = pathMonitor {
             monitor.cancel()
@@ -263,43 +267,46 @@ class CellularConnectionManager {
         pathMonitor?.start(queue: .main)
     }
 
-    private func stopPathMonitor() {
+    func stopMonitoring() {
         if let monitor = pathMonitor {
             monitor.cancel()
             pathMonitor = nil
         }
     }
-}
 
-// MARK: - Internal API
-extension CellularConnectionManager: ConnectionManager {
+    // MARK: - ConnectionManager protocol implementation
     
     func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void) {
         guard let scheme = url.scheme, let host = url.host else {
-            completion(nil, nil)
+            completion(nil, NetworkError.other("No scheme or host found"))
             return
         }
 
         os_log("opening %s", url.absoluteString)
         startMonitoring()
         startConnection(scheme: scheme, host: host)
-        let command = createHttpCommand(url: url)
+
+        guard let command = createHttpCommand(url: url),
+              let data = command.data(using: .utf8) else {
+            completion(nil, NetworkError.other("Unable to create HTTP Request command"))
+            return
+        }
+        
         os_log("sending data:\n%s", command)
-        let data = command.data(using: .utf8)
 
         //This method needs to be called after connection state == .ready
         //URL is guaranteed to have host and scheme at this point
-        sendAndReceive(requestUrl: url, data: data!) { (result) -> Void in
+        sendAndReceive(requestUrl: url, data: data) { (result) -> Void in
+
+            self.stopMonitoring()
+            self.connection?.cancel()
 
             switch result {
             case .redirect(let url):
                 os_log("redirect found: %s", url.absoluteString)
-                self.connection?.cancel()
                 self.openCheckUrl(url: url, completion: completion)
             case .complete(let error):
                 os_log("openCheckUrl is done")
-                self.stopPathMonitor()
-                self.connection?.cancel()
                 completion(nil, error)
             }
 
@@ -314,14 +321,14 @@ extension CellularConnectionManager: ConnectionManager {
         }
 
         startConnection(scheme: scheme, host: host)
-        let str = createHttpCommand(url: url)
-        os_log("sending data:\n", str)
 
-        guard let data = str.data(using: .utf8) else {
+        guard let str = createHttpCommand(url: url),
+              let data = str.data(using: .utf8) else {
             completion(nil)
             return
         }
 
+        os_log("sending data:\n", str)
         sendAndReceiveDictionary(data: data) { (result) -> () in
             completion(result)
         }
@@ -334,14 +341,13 @@ extension CellularConnectionManager: ConnectionManager {
         }
 
         startConnection(scheme: scheme, host: host)
-        let str = createHttpCommand(url: url)
-        os_log("sending data:\n", str)
 
-        guard let data = str.data(using: .utf8) else {
+        guard let str = createHttpCommand(url: url),
+              let data = str.data(using: .utf8) else {
             completion("")
             return
         }
-
+        os_log("sending data:\n", str)
         sendAndReceiveDictionary(data: data) { (result) -> () in
             guard let r = result, let value = r[key] as? String else {
                 completion("")
@@ -352,6 +358,18 @@ extension CellularConnectionManager: ConnectionManager {
     }
 }
 
+protocol InternalAPI {
+    func startConnection(scheme: String, host: String)
+    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, NetworkError>) -> Void)
+    func parseRedirect(requestUrl: URL, response: String) -> URL?
+    func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void)
+    func parseJsonResponse(response: String) -> [String : Any]?
+    func createHttpCommand(url: URL) -> String?
+    func startMonitoring()
+    func stopMonitoring()
+}
+
+// MARK: - Internal API
 protocol ConnectionManager {
     func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void)
     func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)
@@ -363,7 +381,7 @@ enum ConnectionResult<URL, Failure> where Failure: Error {
     case redirect(URL)
 }
 
-enum NetworkError: Error {
+enum NetworkError: Error, Equatable {
     case invalidRedirectURL
     case tooManyRedirects
     case connectionFailed(String)
