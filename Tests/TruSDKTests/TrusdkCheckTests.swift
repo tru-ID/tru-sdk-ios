@@ -39,13 +39,13 @@ extension TrusdkCheckTests {
     func testCheck_ShouldComplete_WithoutErrors() {
         let results: [ConnectionResult<URL, NetworkError>] = [
             .complete(nil),
-            .redirect(URL(string: "https://www.newlook.com")!)
+            .redirect(URL(string: "https://www.tru.id")!)
         ]
 
         let mock = MockConnectionManager(result: results)
         let sdk = TruSDK(connectionManager: mock)
         let expectation = self.expectation(description: "CheckURL Incorrect URL")
-        sdk.check(url: URL(string: "http://newlook.com")!) { (result, error)  in
+        sdk.check(url: URL(string: "http://tru.id")!) { (result, error)  in
             XCTAssertNil(error)
             expectation.fulfill()
         }
@@ -56,13 +56,13 @@ extension TrusdkCheckTests {
     }
 
     func testCheck_3Redirects_ShouldComplete_WithoutErrors() {
-        let startURL = URL(string: "http://newlook.com")!
+        let startURL = URL(string: "http://tru.id")!
 
         let results: [ConnectionResult<URL, NetworkError>] = [
             .complete(nil),
-            .redirect(URL(string: "https://newlook.com")!),
-            .redirect(URL(string: "https://www.newlook.com/uk")!),
-            .redirect(URL(string: "https://www.newlook.com")!)
+            .redirect(URL(string: "https://tru.id")!),
+            .redirect(URL(string: "https://www.tru.id/uk")!),
+            .redirect(URL(string: "https://www.tru.id")!)
         ]
 
         let mock = MockConnectionManager(result: results)
@@ -79,12 +79,12 @@ extension TrusdkCheckTests {
     }
 
     func testCheck_3Redirects_With_RelativePath_ShouldComplete_WithError() {
-        let startURL = URL(string: "http://newlook.com")!
+        let startURL = URL(string: "http://tru.id")!
         let results: [ConnectionResult<URL, NetworkError>] = [
             .complete(nil),
             .redirect(URL(string: "/uk")!), //This shouldn't happen, we are covering this in parseRedirect
-            .redirect(URL(string: "https://newlook.com")!),
-            .redirect(URL(string: "https://www.newlook.com")!)
+            .redirect(URL(string: "https://tru.id")!),
+            .redirect(URL(string: "https://www.tru.id")!)
         ]
         let mock = MockConnectionManager(result: results)
         let sdk = TruSDK(connectionManager: mock)
@@ -97,7 +97,7 @@ extension TrusdkCheckTests {
     }
 
     func testCheck_StartsStopConnectionCalls_ShouldBeInCorrectOrder() {
-        let startURL = URL(string: "http://newlook.com")!
+        let startURL = URL(string: "http://tru.id")!
         let results: [ConnectionResult<URL, NetworkError>] = [.complete(nil)]
 
         let mock = MockConnectionManager(result: results)
@@ -116,9 +116,9 @@ extension TrusdkCheckTests {
     }
 
     func testCheck_StartsStopConnectionCalls_ShouldBeInCorrectOrder_AfterRedirect() {
-        let startURL = URL(string: "http://newlook.com")!
+        let startURL = URL(string: "http://tru.id")!
         let results: [ConnectionResult<URL, NetworkError>] = [.complete(nil),
-                                                              .redirect(URL(string: "https://www.newlook.com")!)]
+                                                              .redirect(URL(string: "https://www.tru.id")!)]
 
         let mock = MockConnectionManager(result: results)
         let sdk = TruSDK(connectionManager: mock)
@@ -154,7 +154,7 @@ extension TrusdkCheckTests {
     }
 
     func testCheck_WithNoHTTPCommand_ShouldReturnError() {
-        let startURL = URL(string: "http://newlook.com")!
+        let startURL = URL(string: "http://tru.id")!
         let results: [ConnectionResult<URL, NetworkError>] = []
 
         let mock = MockConnectionManager(result: results, shouldFailCreatingHttpCommand: true)

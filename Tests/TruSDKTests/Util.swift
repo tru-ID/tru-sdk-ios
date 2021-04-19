@@ -100,6 +100,18 @@ func http3XXResponse(code: HTTPStatus, url: String) -> String {
     """
 }
 
+func http3XXResponseWith(code: HTTPStatus, locationString: String) -> String {
+    return """
+    HTTP/1.1 \(code.rawValue) \(code.statusMessage)\r\n\
+    Server: AkamaiGHost\r\n \
+    Content-Length: 0\r\n\
+    \(locationString)\r\n\
+    Date: Thu, 15 Apr 2021 19:09:15 GMT\r\n\
+    Connection: keep-alive\r\n\
+    Cache-Control: no-store, no-cache, must-revalidate, post-check=0, pre-check=0\r\n\r\n
+    """
+}
+
 func http400Response() -> String {
     ""
 }
