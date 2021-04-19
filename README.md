@@ -31,7 +31,7 @@ tru.openCheckUrl(url: url, completion: completion)
 
 ## Release History
 
-* 0.0.13
+* 0.1.0
     * Now min target is iOS13 and macOS 10.14
     * Additional code improvements
 * 0.0.12
