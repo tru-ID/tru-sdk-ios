@@ -11,12 +11,13 @@ import XCTest
 import UIKit
 #endif
 
-final class TrusdkParseResponseTests: XCTestCase {
+final class TrusdkParseRedirectTests: XCTestCase {
 
     var connectionManager: CellularConnectionManager!
 
     static var allTests = [
         ("testParseRedirect_ShouldReturn_CorrectRedirectURL",testParseRedirect_ShouldReturn_CorrectRedirectURL),
+        ("testParseRedirect_ShouldReturn_Nil_WhenReponseIsNot3XX",testParseRedirect_ShouldReturn_Nil_WhenReponseIsNot3XX),
         ("",testParseRedirect_ShouldReturn_Nil_WhenRequestURLHasNoHost),
         ("testParseRedirect_ShouldReturn_Nil_WhenResponseIsNotARedirect",testParseRedirect_ShouldReturn_Nil_WhenResponseIsNotARedirect),
         ("testParseRedirect_ShouldReturn_Nil_WhenThereIsNoLocation",testParseRedirect_ShouldReturn_Nil_WhenThereIsNoLocation),
@@ -36,7 +37,7 @@ final class TrusdkParseResponseTests: XCTestCase {
     
 }
 
-extension TrusdkParseResponseTests {
+extension TrusdkParseRedirectTests {
 
     func testParseRedirect_ShouldReturn_CorrectRedirectURL() {
         let expectedRedirectURL = "https://www.tru.id/uk"
@@ -45,6 +46,13 @@ extension TrusdkParseResponseTests {
                                                                 response: response)
         XCTAssertNotNil(actualRedirectURL)
         XCTAssertEqual(actualRedirectURL?.absoluteString, expectedRedirectURL)
+    }
+
+    func testParseRedirect_ShouldReturn_Nil_WhenReponseIsNot3XX() {
+        let response = http500Response()
+        let actualRedirectURL = connectionManager.parseRedirect(requestUrl: URL(string: "https://tru.id")!,
+                                                                response: response)
+        XCTAssertNil(actualRedirectURL)
     }
 
     func testParseRedirect_ShouldReturn_Nil_WhenRequestURLHasNoHost() {

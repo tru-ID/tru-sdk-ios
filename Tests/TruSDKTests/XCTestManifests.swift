@@ -4,7 +4,7 @@ import XCTest
 public func allTests() -> [XCTestCaseEntry] {
     return [
         testCase(TrusdkHTTPCommandTests.allTests),
-        testCase(TrusdkParseResponseTests.allTests),
+        testCase(TrusdkParseRedirectTests.allTests),
         testCase(TrusdkCheckTests.allTests),
     ]
 }
