@@ -28,6 +28,9 @@ final class TrusdkHTTPCommandTests: XCTestCase {
         ("testCreateHTTPCommand_PathOnlyURL_ShouldReturn_Nil", testCreateHTTPCommand_PathOnlyURL_ShouldReturn_Nil),
         ("testCreateHTTPCommand_SchemeOnlyURL_ShouldReturn_Nil", testCreateHTTPCommand_SchemeOnlyURL_ShouldReturn_Nil),
         ("testCreateHTTPCommand_URLWithOutAHost_ShouldReturn_Nil", testCreateHTTPCommand_URLWithOutAHost_ShouldReturn_Nil),
+        ("testHTTPStatus_ShouldReturn_200",testHTTPStatus_ShouldReturn_200),
+        ("testHTTPStatus_ShouldReturn_302",testHTTPStatus_ShouldReturn_302),
+        ("testHTTPStatus_ShouldReturn_0_WhenResponseIsCorrupt",testHTTPStatus_ShouldReturn_0_WhenResponseIsCorrupt)
     ]
 
     override func setUpWithError() throws {
