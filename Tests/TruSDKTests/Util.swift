@@ -90,7 +90,7 @@ func http2xxResponse() -> String {
 
 func http3XXResponse(code: HTTPStatus, url: String) -> String {
     return """
-    HTTP/1.1 \(code) \(code.statusMessage)\r\n\
+    HTTP/1.1 \(code.rawValue) \(code.statusMessage)\r\n\
     Server: AkamaiGHost\r\n \
     Content-Length: 0\r\n\
     Location: \(url)\r\n\
@@ -109,7 +109,19 @@ func http500Response() -> String {
 }
 
 func corruptHTTPResponse() -> String {
-    ""
+    return """
+    Accept-Ranges: bytes\r\n\
+    WWEHTTP><><>/1.1 sdkasdh OK203\r\n \
+    il 2021 22:0Date: Mon, 19 Apr4:35 GMT\r\n\
+    Server: Apac19 April 2021 22:04:35 GMT\r\n\
+    ETag: "45b6-834-4913he/2.2.8 (Ubuntu) mod_ssl/2.2.8 OpenSSL/0.9.8g\r\n\
+    Last-Modified: Mon, 0cc1182c0"\r\n\
+    asd;lkasdk,
+    asdk;lasd
+    kqeiqwe
+    \r\n\
+    Hello world!\r\n
+    """
 }
 
 

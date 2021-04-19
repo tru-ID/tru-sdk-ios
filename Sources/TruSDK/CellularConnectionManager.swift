@@ -216,7 +216,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return cmd
     }
 
-    private func httpStatusCode(response: String) -> Int {
+    func httpStatusCode(response: String) -> Int {
         let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
         return Int(status) ?? 0
     }
