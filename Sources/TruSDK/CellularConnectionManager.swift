@@ -24,6 +24,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     //Mitigation for tcp timeout not triggering any events.
     private var timer: Timer?
     private let CONNECTION_TIME_OUT = 20.0
+    private let MAX_REDIRECTS = 10
     private var pathMonitor: NWPathMonitor?
     private var checkResponseHandler: ((ConnectionResult<URL, NetworkError>) -> Void)!
 
@@ -35,6 +36,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             return
         }
 
+        var redirectCount = 0
         checkResponseHandler = { [weak self] (response) -> Void in
 
             guard let self = self else {
@@ -44,9 +46,14 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
             switch response {
             case .follow(let url):
-                os_log("Redirect found: %s", url.absoluteString)
-                self.createTimer()
-                self.activateConnection(url: url, completion: self.checkResponseHandler)
+                redirectCount+=1
+                if redirectCount <= self.MAX_REDIRECTS {
+                    os_log("Redirect found: %s", url.absoluteString)
+                    self.createTimer()
+                    self.activateConnection(url: url, completion: self.checkResponseHandler)
+                } else {
+                    self.connection?.cancel() // This should trigger a state update
+                }
             case .complete(let error):
                 if let err = error {
                     os_log("Check completed with ", err.localizedDescription)
@@ -139,6 +146,16 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         os_log("Performing clean-up.")
         self.timer?.invalidate()
         self.stopMonitoring()
+    }
+
+    /// Decodes a response, first attempting with UTF8 and then fallback to ascii
+    /// - Parameter data: Data which contains the response
+    /// - Returns: decoded response as String
+    func decodeResponse(data: Data) -> String? {
+        guard let response = String(data: data, encoding: .utf8) else {
+            return String(data: data, encoding: .ascii)
+        }
+        return response
     }
 
     // MARK: - Private utility methods
@@ -370,7 +387,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 return
             }
 
-            if let d = data, !d.isEmpty, let response = String(data: d, encoding: .utf8) {
+            if let d = data, !d.isEmpty, let response = self.decodeResponse(data: d) {
 
                 os_log("Response:\n %s", response)
 
