@@ -168,7 +168,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         if timer != nil {
             timer?.invalidate()
         }
-
+        os_log("Creating a new timer", type: .debug)
         timer = Timer.scheduledTimer(timeInterval: self.CONNECTION_TIME_OUT,
                                     target: self,
                                     selector: #selector(self.fireTimer),
@@ -177,6 +177,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     @objc func fireTimer() {
+        os_log("Connection time out.", type: .debug)
         timer?.invalidate()
         connection?.cancel()
     }
