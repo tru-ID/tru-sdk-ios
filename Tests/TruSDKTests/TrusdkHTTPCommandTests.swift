@@ -5,13 +5,6 @@
 //  Created by Murat Yakici on 19/04/2021.
 //
 
-//
-//  TrusdkHTTPCommandTests.swift
-//
-//
-//  Created by Murat Yakici on 19/04/2021.
-//
-
 import XCTest
 @testable import TruSDK
 #if canImport(UIKit)

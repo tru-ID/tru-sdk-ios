@@ -13,9 +13,17 @@ open class TruSDK {
         self.init(connectionManager: CellularConnectionManager())
     }
 
+    @available(*, deprecated, renamed: "check(url:completion:)")
     public func check(url: URL, completion: @escaping (Any?, Error?) -> Void) {
-        //TODO: We need to define a better contract and expectation, as this doesn't mean a call is a success
         connectionManager.openCheckUrl(url: url, completion: completion)
+    }
+
+    /// This method perform a request given a URL
+    /// - Parameters:
+    ///   - url: URL provided by Tru.Id
+    ///   - completion: closure to report check result. Note that, this closure will be called on the Main Thread.
+    public func check(url: URL, completion: @escaping (Error?) -> Void) {
+        connectionManager.check(url: url, completion: completion)
     }
 
     public func jsonResponse(for url: URL, completion: @escaping ([String : Any]?) -> Void) {
