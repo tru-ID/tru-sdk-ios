@@ -43,7 +43,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             }
 
             switch response {
-            case .redirect(let url):
+            case .follow(let url):
                 os_log("redirect found: %s", url.absoluteString)
                 self.createTimer()
                 self.activateConnection(url: url, completion: self.checkResponseHandler)
@@ -300,7 +300,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             self.connection?.cancel()
 
             switch result {
-            case .redirect(let url):
+            case .follow(let url):
                 os_log("redirect found: %s", url.absoluteString)
                 self.openCheckUrl(url: url, completion: completion)
             case .complete(let error):
@@ -374,7 +374,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                         completion(.complete(.invalidRedirectURL("Invalid URL - unable to parseRecirect")))
                         return
                     }
-                    completion(.redirect(url))
+                    completion(.follow(url))
                 case 400...451:
                     completion(.complete(.httpClient("HTTP Client Error:\(status)")))
                 case 500...511:
@@ -477,7 +477,7 @@ protocol ConnectionManager {
 
 enum ConnectionResult<URL, Failure> where Failure: Error {
     case complete(Failure?)
-    case redirect(URL)
+    case follow(URL)
 }
 
 enum NetworkError: Error, Equatable {

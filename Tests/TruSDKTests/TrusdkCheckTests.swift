@@ -41,7 +41,7 @@ extension TrusdkCheckTests {
         //results will be processes from last to first
         let results: [ConnectionResult<URL, NetworkError>] = [
             .complete(nil),
-            .redirect(URL(string: "https://www.tru.id")!)
+            .follow(URL(string: "https://www.tru.id")!)
         ]
 
         let mock = MockConnectionManager(result: results)
@@ -73,9 +73,9 @@ extension TrusdkCheckTests {
 
         let results: [ConnectionResult<URL, NetworkError>] = [
             .complete(nil),
-            .redirect(URL(string: "https://www.tru.id/uk")!),
-            .redirect(URL(string: "https://www.tru.id")!),
-            .redirect(URL(string: "https://tru.id")!)
+            .follow(URL(string: "https://www.tru.id/uk")!),
+            .follow(URL(string: "https://www.tru.id")!),
+            .follow(URL(string: "https://tru.id")!)
         ]
 
         let mock = MockConnectionManager(result: results)
@@ -96,9 +96,9 @@ extension TrusdkCheckTests {
         let startURL = URL(string: "http://tru.id")!
         let results: [ConnectionResult<URL, NetworkError>] = [
             .complete(nil),
-            .redirect(URL(string: "/uk")!), //This shouldn't happen, we are covering this in parseRedirect test
-            .redirect(URL(string: "https://tru.id")!),
-            .redirect(URL(string: "https://www.tru.id")!)
+            .follow(URL(string: "/uk")!), //This shouldn't happen, we are covering this in parseRedirect test
+            .follow(URL(string: "https://tru.id")!),
+            .follow(URL(string: "https://www.tru.id")!)
         ]
         let mock = MockConnectionManager(result: results)
         let sdk = TruSDK(connectionManager: mock)
@@ -134,7 +134,7 @@ extension TrusdkCheckTests {
     func testCheck_StartsStopConnectionCalls_ShouldBeInCorrectOrder_AfterRedirect() {
         let startURL = URL(string: "http://tru.id")!
         let results: [ConnectionResult<URL, NetworkError>] = [.complete(nil),
-                                                              .redirect(URL(string: "https://www.tru.id")!)]
+                                                              .follow(URL(string: "https://www.tru.id")!)]
 
         let mock = MockConnectionManager(result: results)
         let sdk = TruSDK(connectionManager: mock)
@@ -193,7 +193,7 @@ extension TrusdkCheckTests {
         let startURL = URL(string: "http://tru.id")!
         let results: [ConnectionResult<URL, NetworkError>] = [
             .complete(error),
-            .redirect(URL(string: "https://www.tru.id/uk")!)
+            .follow(URL(string: "https://www.tru.id/uk")!)
         ]
 
         let mock = MockConnectionManager(result: results)
