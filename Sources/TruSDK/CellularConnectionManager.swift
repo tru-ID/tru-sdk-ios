@@ -360,8 +360,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 return
             }
 
-            if let d = data, !d.isEmpty {
-                let response = String(data: d, encoding: .utf8)!
+            if let d = data, !d.isEmpty, let response = String(data: d, encoding: .utf8) {
 
                 os_log("Response:\n %s", response)
 
@@ -385,7 +384,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                     completion(.complete(.other("HTTP Status can't be parsed \(status)")))
                 }
             } else {
-                completion(.complete(.noData("Response has no body")))
+                completion(.complete(.noData("Response has no data or corrupt")))
             }
         }
     }
