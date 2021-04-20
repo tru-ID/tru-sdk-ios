@@ -44,13 +44,14 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
             switch response {
             case .follow(let url):
-                os_log("redirect found: %s", url.absoluteString)
+                os_log("Redirect found: %s", url.absoluteString)
                 self.createTimer()
                 self.activateConnection(url: url, completion: self.checkResponseHandler)
             case .complete(let error):
-                self.timer?.invalidate()
-                self.stopMonitoring()
-                os_log("openCheckUrl is done")
+                if let err = error {
+                    os_log("Check completed with ", err.localizedDescription)
+                }
+                self.cleanUp()
                 completion(error)
             }
 
@@ -134,6 +135,12 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return connection
     }
 
+    func cleanUp() {
+        os_log("Performing clean-up.")
+        self.timer?.invalidate()
+        self.stopMonitoring()
+    }
+
     // MARK: - Private utility methods
     func createHttpCommand(url: URL) -> String? {
         guard let host = url.host else {
@@ -165,10 +172,12 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     private func createTimer() {
-        if timer != nil {
-            timer?.invalidate()
+        if let timer = timer, timer.isValid {
+            os_log("Invalidating the existing timer", type: .debug)
+            timer.invalidate()
         }
-        os_log("Creating a new timer", type: .debug)
+
+        os_log("Starting a new timer", type: .debug)
         timer = Timer.scheduledTimer(timeInterval: self.CONNECTION_TIME_OUT,
                                     target: self,
                                     selector: #selector(self.fireTimer),
