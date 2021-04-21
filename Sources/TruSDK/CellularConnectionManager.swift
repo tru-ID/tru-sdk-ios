@@ -220,7 +220,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     @objc func fireTimer() {
         os_log("Connection time out.", type: .debug)
         timer?.invalidate()
-        connection?.cancel()
+        self.cancelConnection()
     }
 
     func startMonitoring() {
