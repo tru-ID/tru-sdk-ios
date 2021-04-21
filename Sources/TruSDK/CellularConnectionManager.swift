@@ -38,6 +38,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
 
         var redirectCount = 0
+        // This closuser will be called on main thread
         checkResponseHandler = { [weak self] (response) -> Void in
 
             guard let self = self else {
@@ -70,9 +71,12 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
 
         os_log("opening %s", url.absoluteString)
-        self.startMonitoring()
-        self.createTimer()
-        activateConnection(url: url, completion: checkResponseHandler)
+        //Initiating on the main thread to synch, as all connection update/state events will also be called on main thread
+        DispatchQueue.main.async {
+            self.startMonitoring()
+            self.createTimer()
+            self.activateConnection(url: url, completion: self.checkResponseHandler)
+        }
 
     }
 
@@ -105,7 +109,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             connection.stateUpdateHandler = createConnectionUpdateHandler(completion: completion, readyStateHandler: { [weak self] in
                 self?.sendAndReceive(requestUrl: url, data: data, completion: completion)
             })
-            // All connection events will be delivered on this queue.
+            // All connection events will be delivered on the main thread.
             connection.start(queue: .main)
         } else {
             os_log("Problem creating a connection ", url.absoluteString)
@@ -227,17 +231,18 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     func createTimer() {
-        if let timer = timer, timer.isValid {
+
+        if let timer = self.timer, timer.isValid {
             os_log("Invalidating the existing timer", type: .debug)
             timer.invalidate()
         }
 
         os_log("Starting a new timer", type: .debug)
-        timer = Timer.scheduledTimer(timeInterval: self.CONNECTION_TIME_OUT,
-                                    target: self,
-                                    selector: #selector(self.fireTimer),
-                                    userInfo: nil,
-                                    repeats: false)
+        self.timer = Timer.scheduledTimer(timeInterval: self.CONNECTION_TIME_OUT,
+                                          target: self,
+                                          selector: #selector(self.fireTimer),
+                                          userInfo: nil,
+                                          repeats: false)
     }
 
     @objc func fireTimer() {
@@ -345,6 +350,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
 
         var redirectCount = 0
+        // This closuser will be called on main thread
         checkResponseHandler = { [weak self] (response) -> Void in
 
             guard let self = self else {
@@ -378,9 +384,12 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
 
         os_log("opening %s", url.absoluteString)
-        self.startMonitoring()
-        self.createTimer()
-        activateConnectionForDataFetch(url: url, completion: checkResponseHandler)
+        //Initiating on the main thread to synch, as all connection update/state events will also be called on main thread
+        DispatchQueue.main.async {
+            self.startMonitoring()
+            self.createTimer()
+            self.activateConnection(url: url, completion: self.checkResponseHandler)
+        }
     }
 
     /// Quite similar to activateConnection(..)
@@ -405,7 +414,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             connection.stateUpdateHandler = createConnectionUpdateHandler(completion: completion, readyStateHandler: { [weak self] in
                 self?.sendAndReceiveDictionary(requestUrl: url, data: data, completion: completion)
             })
-            // All connection events will be delivered on this queue.
+            // All connection events will be delivered on the main thread.
             connection.start(queue: .main)
         } else {
             os_log("Problem creating a connection ", url.absoluteString)
@@ -423,7 +432,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             }
         }))
 
-        //Read the entire response body of if 200
+        //Read the entire response body if HTTP Status Code == 200
         connection?.receiveMessage { data, context, isComplete, error in
 
             os_log("Receive isComplete: %s", isComplete.description)
@@ -620,5 +629,7 @@ enum NetworkError: Error, Equatable {
     case httpServer(String)
     case other(String)
 }
+
+
 
 
