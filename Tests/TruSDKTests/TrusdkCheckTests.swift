@@ -373,7 +373,14 @@ extension TrusdkCheckTests {
 
     func testCreateConnection_GivenWellFormedURL_ShouldReturn_ValidConnection() {
         let url = URL(string: "https://trud.id")!
-        let connection = connectionManager.createConnection(scheme: url.scheme!, host: url.host!)
+        
+        var connection = connectionManager.createConnection(scheme: url.scheme!, host: url.host!)
+        XCTAssertNotNil(connection)
+
+        connection = connectionManager.createConnection(scheme: "http", host: "tru.id")
+        XCTAssertNotNil(connection)
+
+        connection = connectionManager.createConnection(scheme: "https", host: "tru.id")
         XCTAssertNotNil(connection)
     }
 
@@ -383,10 +390,16 @@ extension TrusdkCheckTests {
     }
 
     func testCreateConnection_GivenEmptySchemOrHost_ShouldReturn_Nil() {
-        var connection = connectionManager.createConnection(scheme: "", host: "tru.id")
+        var connection = connectionManager.createConnection(scheme: "", host: "")
+        XCTAssertNil(connection)
+
+        connection = connectionManager.createConnection(scheme: "", host: "tru.id")
         XCTAssertNil(connection)
 
         connection = connectionManager.createConnection(scheme: "https", host: "")
+        XCTAssertNil(connection)
+
+        connection = connectionManager.createConnection(scheme: "http", host: "")
         XCTAssertNil(connection)
     }
 

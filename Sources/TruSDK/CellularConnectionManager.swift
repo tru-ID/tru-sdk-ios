@@ -124,10 +124,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     func createConnection(scheme: String, host: String) -> NWConnection? {
-        if scheme.isEmpty ||
-            host.isEmpty ||
-            !scheme.hasPrefix("http") ||
-            !scheme.hasPrefix("https") {
+        if scheme.isEmpty || host.isEmpty ||
+            !(scheme.hasPrefix("http") || scheme.hasPrefix("https")) {
             return nil
         }
 
