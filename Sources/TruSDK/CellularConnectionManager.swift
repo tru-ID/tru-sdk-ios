@@ -54,7 +54,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                     self.activateConnection(url: url, completion: self.checkResponseHandler)
                 } else {
                     os_log("MAX Redirects reached %s", String(self.MAX_REDIRECTS))
-                    self.cancelConnection()
+                    self.fireTimer()
                 }
             case .complete(let error):
                 if let err = error {
@@ -76,11 +76,16 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
     }
 
-    func cancelConnection() {
-        self.connection?.cancel() // This should trigger a state update
+    func cancelExistingConnection() {
+        if self.connection != nil {
+            self.connection?.cancel() // This should trigger a state update
+            self.connection = nil
+        }
     }
 
     func activateConnection(url: URL, completion: @escaping ResultHandler) {
+        self.cancelExistingConnection()
+
         guard let scheme = url.scheme,
               let host = url.host else {
             completion(.complete(NetworkError.other("URL has no Host or Scheme")))
@@ -122,7 +127,6 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 os_log("Connection State: Waiting %s \n", error.localizedDescription)
             case .cancelled:
                 os_log("Connection State: Cancelled\n")
-                completion(.complete(NetworkError.other("Connection cancelled - either due to time out, or MAC Redirect reached")))
             case .failed(let error):
                 os_log("Connection State: Failed ->%s", type:.error, error.localizedDescription)
                 completion(.complete(error))
@@ -239,7 +243,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     @objc func fireTimer() {
         os_log("Connection time out.", type: .debug)
         timer?.invalidate()
-        self.cancelConnection()
+        checkResponseHandler(.complete(NetworkError.other("Connection cancelled - either due to time out, or MAC Redirect reached")))
     }
 
     func startMonitoring() {
@@ -281,6 +285,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         os_log("Performing clean-up.")
         self.timer?.invalidate()
         self.stopMonitoring()
+        self.cancelExistingConnection()
     }
 
     func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
@@ -356,7 +361,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                     self.activateConnectionForDataFetch(url: url, completion: self.checkResponseHandler)
                 } else {
                     os_log("MAX Redirects reached %s", String(self.MAX_REDIRECTS))
-                    self.cancelConnection()
+                    self.fireTimer()
                 }
             case .complete(let error):
                 if let err = error {
@@ -365,6 +370,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 self.cleanUp()
                 completion(nil)
             case .data(let data):
+                os_log("Data received")
+                self.cleanUp()
                 completion(data)
             }
 
@@ -378,6 +385,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
     /// Quite similar to activateConnection(..)
     func activateConnectionForDataFetch(url: URL, completion: @escaping ResultHandler) {
+        self.cancelExistingConnection()
         guard let scheme = url.scheme,
               let host = url.host else {
             completion(.complete(NetworkError.other("URL has no Host or Scheme")))

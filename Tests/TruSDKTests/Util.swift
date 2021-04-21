@@ -189,7 +189,7 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
         //Empty implementation to avoid accidental triggers
     }
     
-    override func cancelConnection() {
+    override func cancelExistingConnection() {
         self.stateUpdateHandler(.cancelled)
     }
 
@@ -240,7 +240,11 @@ class MockConnectionManager: CellularConnectionManager {
 
         //Simulate state changes
         for state in connectionStateHandlerPlaylist {
-            stateUpdateHandler(state)
+            if state == .cancelled {
+                self.fireTimer()
+            } else {
+                stateUpdateHandler(state)
+            }
         }
     }
 
