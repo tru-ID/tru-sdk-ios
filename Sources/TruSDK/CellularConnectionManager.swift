@@ -92,9 +92,14 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         os_log("sending data:\n%s", command)
 
         connection = createConnection(scheme: scheme, host: host)
-        connection?.stateUpdateHandler = createConnectionUpdateHandler(url: url, data: data, completion: completion)
-        // All connection events will be delivered on this queue.
-        connection?.start(queue: .main)
+        if let connection = connection {
+            connection.stateUpdateHandler = createConnectionUpdateHandler(url: url, data: data, completion: completion)
+            // All connection events will be delivered on this queue.
+            connection.start(queue: .main)
+        } else {
+            os_log("Problem creating a connection ", url.absoluteString)
+            completion(.complete(NetworkError.connectionCantBeCreated("Problem creating a connection \(url.absoluteString)")))
+        }
     }
 
     func createConnectionUpdateHandler(url: URL, data: Data, completion: @escaping (ConnectionResult<URL, Error>) -> Void) -> (NWConnection.State) -> Void {
