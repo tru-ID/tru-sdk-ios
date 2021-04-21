@@ -128,6 +128,31 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
 
+    // MARK: - Utility methods
+    func createHttpCommand(url: URL) -> String? {
+        guard let host = url.host else {
+            return nil
+        }
+
+        var cmd = String(format: "GET %@", url.path)
+
+        if let q = url.query {
+            cmd += String(format:"?%@", q)
+        }
+
+        cmd += String(format:" HTTP/1.1\r\nHost: %@", host)
+        cmd += "\r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
+        #if canImport(UIKit)
+        cmd += UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
+        #elseif os(macOS)
+        cmd += "macOS / Unknown"
+        #endif
+        cmd += "\r\nAccept: */*"
+        cmd += "\r\nConnection: close\r\n\r\n"
+
+        return cmd
+    }
+
     func createConnection(scheme: String, host: String) -> NWConnection? {
         if scheme.isEmpty || host.isEmpty ||
             !(scheme.hasPrefix("http") || scheme.hasPrefix("https")) {
@@ -160,12 +185,11 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return connection
     }
 
-    func cleanUp() {
-        os_log("Performing clean-up.")
-        self.timer?.invalidate()
-        self.stopMonitoring()
+    func httpStatusCode(response: String) -> Int {
+        let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
+        return Int(status) ?? 0
     }
-
+    
     /// Decodes a response, first attempting with UTF8 and then fallback to ascii
     /// - Parameter data: Data which contains the response
     /// - Returns: decoded response as String
@@ -176,34 +200,21 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return response
     }
 
-    // MARK: - Private utility methods
-    func createHttpCommand(url: URL) -> String? {
-        guard let host = url.host else {
+    func parseRedirect(requestUrl: URL, response: String) -> URL? {
+        guard let _ = requestUrl.host else {
             return nil
         }
-
-        var cmd = String(format: "GET %@", url.path)
-
-        if let q = url.query {
-            cmd += String(format:"?%@", q)
+        //header could be named "Location" or "location"
+        if let range = response.range(of: #"ocation: (.*)\r\n"#, options: .regularExpression) {
+            let location = response[range]
+            let redirect = location[location.index(location.startIndex, offsetBy: 9)..<location.index(location.endIndex, offsetBy: -1)]
+            if let redirectURL =  URL(string: String(redirect)) {
+                return redirectURL.host == nil ? URL(string: redirectURL.path, relativeTo: requestUrl) : redirectURL
+            } else {
+                return nil
+            }
         }
-
-        cmd += String(format:" HTTP/1.1\r\nHost: %@", host)
-        cmd += "\r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
-        #if canImport(UIKit)
-        cmd += UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
-        #elseif os(macOS)
-        cmd += "macOS / Unknown"
-        #endif
-        cmd += "\r\nAccept: */*"
-        cmd += "\r\nConnection: close\r\n\r\n"
-
-        return cmd
-    }
-
-    func httpStatusCode(response: String) -> Int {
-        let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
-        return Int(status) ?? 0
+        return nil
     }
 
     func createTimer() {
@@ -261,21 +272,123 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
 
-    func parseRedirect(requestUrl: URL, response: String) -> URL? {
-        guard let _ = requestUrl.host else {
-            return nil
-        }
-        //header could be named "Location" or "location"
-        if let range = response.range(of: #"ocation: (.*)\r\n"#, options: .regularExpression) {
-            let location = response[range]
-            let redirect = location[location.index(location.startIndex, offsetBy: 9)..<location.index(location.endIndex, offsetBy: -1)]
-            if let redirectURL =  URL(string: String(redirect)) {
-                return redirectURL.host == nil ? URL(string: redirectURL.path, relativeTo: requestUrl) : redirectURL
+    func cleanUp() {
+        os_log("Performing clean-up.")
+        self.timer?.invalidate()
+        self.stopMonitoring()
+    }
+
+    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, Error>) -> Void) {
+        connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
+            if let err = error {
+                os_log("Sending error %s", type: .error, err.localizedDescription)
+                completion(.complete(err))
+
+            }
+        }))
+
+        // only reading the first 4Kb to retreive the Status & Location headers, not interested in the body
+        connection?.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, context, isComplete, error in
+
+            os_log("Receive isComplete: %s", isComplete.description)
+            if let err = error {
+                completion(.complete(err))
+                return
+            }
+
+            if let d = data, !d.isEmpty, let response = self.decodeResponse(data: d) {
+
+                os_log("Response:\n %s", response)
+
+                let status = self.httpStatusCode(response: response)
+                os_log("\n----\nHTTP status: %s", String(status))
+
+                switch status {
+                case 301...303, 307...308:
+                    guard let url = self.parseRedirect(requestUrl: requestUrl, response: response) else {
+                        completion(.complete(NetworkError.invalidRedirectURL("Invalid URL - unable to parseRecirect")))
+                        return
+                    }
+                    completion(.follow(url))
+                case 400...451:
+                    completion(.complete(NetworkError.httpClient("HTTP Client Error:\(status)")))
+                case 500...511:
+                    completion(.complete(NetworkError.httpServer("HTTP Server Error:\(status)")))
+                case 200...206:
+                    completion(.complete(nil))
+                default:
+                    completion(.complete(NetworkError.other("HTTP Status can't be parsed \(status)")))
+                }
             } else {
-                return nil
+                completion(.complete(NetworkError.noData("Response has no data or corrupt")))
             }
         }
-        return nil
+    }
+
+    // MARK: - Data fetch
+    func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)  {
+        guard let scheme = url.scheme, let host = url.host else {
+            completion(nil)
+            return
+        }
+
+        startConnection(scheme: scheme, host: host)
+
+        guard let str = createHttpCommand(url: url),
+              let data = str.data(using: .utf8) else {
+            completion(nil)
+            return
+        }
+
+        os_log("sending data:\n", str)
+        sendAndReceiveDictionary(data: data) { (result) -> Void in
+            completion(result)
+        }
+    }
+
+    func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)  {
+        guard let scheme = url.scheme, let host = url.host else {
+            completion("")
+            return
+        }
+
+        startConnection(scheme: scheme, host: host)
+
+        guard let str = createHttpCommand(url: url),
+              let data = str.data(using: .utf8) else {
+            completion("")
+            return
+        }
+
+        os_log("sending data:\n", str)
+        sendAndReceiveDictionary(data: data) { (result) -> Void in
+            guard let r = result, let value = r[key] as? String else {
+                completion("")
+                return
+            }
+            completion(value)
+        }
+    }
+
+    func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void) {
+        connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
+            if let err = error {
+                os_log("Sending error %", type:.error, err.localizedDescription)
+                completion(nil)
+            }
+        }))
+
+        connection?.receiveMessage { data, context, isComplete, error in
+            os_log("Receive isComplete: %s", isComplete.description)
+            guard let d = data else {
+                os_log("Error: Received nil data")
+                completion(nil)
+                return
+            }
+            let response = String(data: d, encoding: .utf8)!
+            os_log("Response:\n%s", response)
+            completion(self.parseJsonResponse(response: response))
+        }
     }
 
     func parseJsonResponse(response: String) -> [String : Any]? {
@@ -387,117 +500,6 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         connection?.start(queue: .main)
     }
 
-    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, Error>) -> Void) {
-        connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
-            if let err = error {
-                os_log("Sending error %s", type: .error, err.localizedDescription)
-                completion(.complete(err))
-
-            }
-        }))
-
-        // only reading the first 4Kb to retreive the Status & Location headers, not interested in the body
-        connection?.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, context, isComplete, error in
-
-            os_log("Receive isComplete: %s", isComplete.description)
-            if let err = error {
-                completion(.complete(err))
-                return
-            }
-
-            if let d = data, !d.isEmpty, let response = self.decodeResponse(data: d) {
-
-                os_log("Response:\n %s", response)
-
-                let status = self.httpStatusCode(response: response)
-                os_log("\n----\nHTTP status: %s", String(status))
-
-                switch status {
-                case 301...303, 307...308:
-                    guard let url = self.parseRedirect(requestUrl: requestUrl, response: response) else {
-                        completion(.complete(NetworkError.invalidRedirectURL("Invalid URL - unable to parseRecirect")))
-                        return
-                    }
-                    completion(.follow(url))
-                case 400...451:
-                    completion(.complete(NetworkError.httpClient("HTTP Client Error:\(status)")))
-                case 500...511:
-                    completion(.complete(NetworkError.httpServer("HTTP Server Error:\(status)")))
-                case 200...206:
-                    completion(.complete(nil))
-                default:
-                    completion(.complete(NetworkError.other("HTTP Status can't be parsed \(status)")))
-                }
-            } else {
-                completion(.complete(NetworkError.noData("Response has no data or corrupt")))
-            }
-        }
-    }
-
-    func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)  {
-        guard let scheme = url.scheme, let host = url.host else {
-            completion(nil)
-            return
-        }
-
-        startConnection(scheme: scheme, host: host)
-
-        guard let str = createHttpCommand(url: url),
-              let data = str.data(using: .utf8) else {
-            completion(nil)
-            return
-        }
-
-        os_log("sending data:\n", str)
-        sendAndReceiveDictionary(data: data) { (result) -> Void in
-            completion(result)
-        }
-    }
-
-    func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)  {
-        guard let scheme = url.scheme, let host = url.host else {
-            completion("")
-            return
-        }
-
-        startConnection(scheme: scheme, host: host)
-
-        guard let str = createHttpCommand(url: url),
-              let data = str.data(using: .utf8) else {
-            completion("")
-            return
-        }
-
-        os_log("sending data:\n", str)
-        sendAndReceiveDictionary(data: data) { (result) -> Void in
-            guard let r = result, let value = r[key] as? String else {
-                completion("")
-                return
-            }
-            completion(value)
-        }
-    }
-
-    func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void) {
-        connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
-            if let err = error {
-                os_log("Sending error %", type:.error, err.localizedDescription)
-                completion(nil)
-            }
-        }))
-
-        connection?.receiveMessage { data, context, isComplete, error in
-            os_log("Receive isComplete: %s", isComplete.description)
-            guard let d = data else {
-                os_log("Error: Received nil data")
-                completion(nil)
-                return
-            }
-            let response = String(data: d, encoding: .utf8)!
-            os_log("Response:\n%s", response)
-            completion(self.parseJsonResponse(response: response))
-        }
-    }
 }
 
 protocol InternalAPI {
