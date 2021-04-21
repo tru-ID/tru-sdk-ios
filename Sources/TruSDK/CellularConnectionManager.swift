@@ -6,6 +6,7 @@ import Foundation
 import Network
 import os
 
+typealias ResultHandler = (ConnectionResult<URL, Data, Error>) -> Void
 //
 // Force connectivity to cellular only
 // Open the "check url" and follows all redirects
@@ -26,7 +27,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     private let CONNECTION_TIME_OUT = 20.0
     private let MAX_REDIRECTS = 10
     private var pathMonitor: NWPathMonitor?
-    private var checkResponseHandler: ((ConnectionResult<URL, Error>) -> Void)!
+    private var checkResponseHandler: ResultHandler!
 
     // MARK: - New methods
     func check(url: URL, completion: @escaping (Error?) -> Void) {
@@ -61,6 +62,9 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 }
                 self.cleanUp()
                 completion(error)
+            case .data(_):
+                //ignore, check method is not fetching for data
+                os_log("Data received - this method should not be handling data")
             }
 
         }
@@ -76,7 +80,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         self.connection?.cancel() // This should trigger a state update
     }
 
-    func activateConnection(url: URL, completion: @escaping (ConnectionResult<URL, Error>) -> Void) {
+    func activateConnection(url: URL, completion: @escaping ResultHandler) {
         guard let scheme = url.scheme,
               let host = url.host else {
             completion(.complete(NetworkError.other("URL has no Host or Scheme")))
@@ -102,7 +106,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
 
-    func createConnectionUpdateHandler(url: URL, data: Data, completion: @escaping (ConnectionResult<URL, Error>) -> Void) -> (NWConnection.State) -> Void {
+    func createConnectionUpdateHandler(url: URL, data: Data, completion: @escaping ResultHandler) -> (NWConnection.State) -> Void {
         return { [weak self] (newState) in
             switch (newState) {
             case .setup:
@@ -189,7 +193,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         let status = response[response.index(response.startIndex, offsetBy: 9)..<response.index(response.startIndex, offsetBy: 12)]
         return Int(status) ?? 0
     }
-    
+
     /// Decodes a response, first attempting with UTF8 and then fallback to ascii
     /// - Parameter data: Data which contains the response
     /// - Returns: decoded response as String
@@ -278,7 +282,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         self.stopMonitoring()
     }
 
-    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, Error>) -> Void) {
+    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 os_log("Sending error %s", type: .error, err.localizedDescription)
@@ -447,7 +451,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
         os_log("sending data:\n%s", command)
 
-        let responseHandler: (ConnectionResult<URL, Error>) -> Void = { [weak self] (result) -> Void in
+        let responseHandler: ResultHandler = { [weak self] (result) -> Void in
 
             guard let self = self else {
                 completion(nil, NetworkError.other("Unable to carry on"))
@@ -464,6 +468,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             case .complete(let error):
                 os_log("openCheckUrl is done")
                 completion(nil, error)
+            case .data(_):
+                os_log("data received")
             }
 
         }
@@ -504,7 +510,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
 protocol InternalAPI {
     func startConnection(scheme: String, host: String)
-    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, Error>) -> Void)
+    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL,Data, Error>) -> Void)
     func parseRedirect(requestUrl: URL, response: String) -> URL?
     func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void)
     func parseJsonResponse(response: String) -> [String : Any]?
@@ -521,8 +527,9 @@ protocol ConnectionManager {
     func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)
 }
 
-enum ConnectionResult<URL, Failure> where Failure: Error {
+enum ConnectionResult<URL, Data, Failure> where Failure: Error {
     case complete(Failure?)
+    case data(Data?)
     case follow(URL)
 }
 

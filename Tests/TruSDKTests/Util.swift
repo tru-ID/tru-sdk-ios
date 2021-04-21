@@ -143,12 +143,12 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
     typealias CompletionHandler = (Any?, Error?) -> Void
 
     // For testing multiple redirects
-    private var playList: [ConnectionResult<URL, Error>]
+    private var playList: [ConnectionResult<URL, Data, Error>]
     // This would help us simulate connection state changes
     var connectionStateHandlerPlaylist: [NWConnection.State] = [.setup, .preparing, .ready]
     var stateUpdateHandler: ((NWConnection.State) -> Void)!
 
-    init(playList: [ConnectionResult<URL, Error>]) {
+    init(playList: [ConnectionResult<URL, Data, Error>]) {
         self.playList = playList
     }
 
@@ -157,7 +157,7 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
         super.check(url: url, completion: completion)
     }
 
-    override func activateConnection(url: URL, completion: @escaping (ConnectionResult<URL, Error>) -> Void) {
+    override func activateConnection(url: URL, completion: @escaping ResultHandler) {
         let url = URL(string: "https://www.tru.id")!
         let mockCommand = createHttpCommand(url: url)
         let mockData = mockCommand?.data(using: .utf8)
@@ -171,7 +171,7 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
         }
     }
 
-    override func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, Error>) -> Void) {
+    override func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
         if let result = playList.popLast() {
             completion(result)
         } else {
@@ -196,7 +196,7 @@ class MockConnectionManager: CellularConnectionManager {
     typealias CompletionHandler = (Any?, Error?) -> Void
 
     // For testing multiple redirects
-    private var playList: [ConnectionResult<URL, Error>]
+    private var playList: [ConnectionResult<URL, Data, Error>]
     // This would help us simulate connection state changes
     var connectionStateHandlerPlaylist: [NWConnection.State] = [.setup, .preparing, .ready]
 
@@ -211,7 +211,7 @@ class MockConnectionManager: CellularConnectionManager {
     var isActivateConnectionCalled: Bool = false
 
 
-    init(playList: [ConnectionResult<URL, Error>], shouldFailCreatingHttpCommand: Bool = false) {
+    init(playList: [ConnectionResult<URL, Data, Error>], shouldFailCreatingHttpCommand: Bool = false) {
         self.playList = playList
         self.shouldFailCreatingHttpCommand = shouldFailCreatingHttpCommand
     }
@@ -221,7 +221,7 @@ class MockConnectionManager: CellularConnectionManager {
         super.check(url: url, completion: completion)
     }
 
-    override func activateConnection(url: URL, completion: @escaping (ConnectionResult<URL, Error>) -> Void) {
+    override func activateConnection(url: URL, completion: @escaping ResultHandler) {
         self.isActivateConnectionCalled = true
         self.connectionLifecycle.append("activateConnection")
         let mockCommand = createHttpCommand(url: url)
@@ -256,7 +256,7 @@ class MockConnectionManager: CellularConnectionManager {
         self.connectionLifecycle.append("startConnection")
     }
 
-    override func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, Error>) -> Void) {
+    override func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
         if let result = playList.popLast() {
             completion(result)
         } else {
