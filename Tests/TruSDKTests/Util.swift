@@ -149,10 +149,35 @@ class MockConnectionManager: CellularConnectionManager {
     var connectionLifecycle = [String]()
     let shouldFailCreatingHttpCommand: Bool
 
+    // Support for new tests
+    var isCleanUpCalled: Bool = false
+    var isActivateConnectionCalled: Bool = false
+
+
     init(result: [ConnectionResult<URL, NetworkError>], shouldFailCreatingHttpCommand: Bool = false) {
         self.results = result
         self.shouldFailCreatingHttpCommand = shouldFailCreatingHttpCommand
     }
+
+    // MARK: - New methods
+    override func check(url: URL, completion: @escaping (Error?) -> Void) {
+        super.check(url: url, completion: completion)
+    }
+
+    override func activateConnection(url: URL, completion: @escaping (ConnectionResult<URL, NetworkError>) -> Void) {
+        self.isActivateConnectionCalled = true
+        self.connectionLifecycle.append("activateConnection")
+        let mockCommand = createHttpCommand(url: url)
+        let mockData = mockCommand?.data(using: .utf8)
+        self.sendAndReceive(requestUrl: url, data: mockData!, completion: completion)
+    }
+
+    override func cleanUp() {
+        isCleanUpCalled = true
+        self.stopMonitoring()
+    }
+    
+    // MARK: - Soon to be deprecated
 
     override func openCheckUrl(url: URL, completion: @escaping CompletionHandler) {
         super.openCheckUrl(url: url, completion: completion)
@@ -174,6 +199,7 @@ class MockConnectionManager: CellularConnectionManager {
 
     }
 
+    // MARK: - Utility methods
     override func createHttpCommand(url: URL) -> String? {
         if shouldFailCreatingHttpCommand {
             return nil

@@ -116,6 +116,13 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     func createConnection(scheme: String, host: String) -> NWConnection? {
+        if scheme.isEmpty ||
+            host.isEmpty ||
+            !scheme.hasPrefix("http") ||
+            !scheme.hasPrefix("https") {
+            return nil
+        }
+
         let tcpOptions = NWProtocolTCP.Options()
         tcpOptions.connectionTimeout = 5 //Secs
         tcpOptions.enableKeepalive = false
