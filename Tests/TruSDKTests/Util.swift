@@ -143,12 +143,12 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
     typealias CompletionHandler = (Any?, Error?) -> Void
 
     // For testing multiple redirects
-    private var playList: [ConnectionResult<URL, Data, Error>]
+    private var playList: [ConnectionResult<URL, [String : Any], Error>]
     // This would help us simulate connection state changes
     var connectionStateHandlerPlaylist: [NWConnection.State] = [.setup, .preparing, .ready]
     var stateUpdateHandler: ((NWConnection.State) -> Void)!
 
-    init(playList: [ConnectionResult<URL, Data, Error>]) {
+    init(playList: [ConnectionResult<URL, [String : Any], Error>]) {
         self.playList = playList
     }
 
@@ -164,7 +164,11 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
         guard let data = mockData else {
             return
         }
-        stateUpdateHandler = createConnectionUpdateHandler(url: url, data: data, completion: completion)
+
+        stateUpdateHandler = createConnectionUpdateHandler(completion: completion) {
+            self.sendAndReceive(requestUrl: url, data: data, completion: completion)
+        }
+
         //Simulate state changes
         for state in connectionStateHandlerPlaylist {
             stateUpdateHandler(state)
@@ -196,7 +200,7 @@ class MockConnectionManager: CellularConnectionManager {
     typealias CompletionHandler = (Any?, Error?) -> Void
 
     // For testing multiple redirects
-    private var playList: [ConnectionResult<URL, Data, Error>]
+    private var playList: [ConnectionResult<URL, [String : Any], Error>]
     // This would help us simulate connection state changes
     var connectionStateHandlerPlaylist: [NWConnection.State] = [.setup, .preparing, .ready]
 
@@ -211,7 +215,7 @@ class MockConnectionManager: CellularConnectionManager {
     var isActivateConnectionCalled: Bool = false
 
 
-    init(playList: [ConnectionResult<URL, Data, Error>], shouldFailCreatingHttpCommand: Bool = false) {
+    init(playList: [ConnectionResult<URL, [String : Any], Error>], shouldFailCreatingHttpCommand: Bool = false) {
         self.playList = playList
         self.shouldFailCreatingHttpCommand = shouldFailCreatingHttpCommand
     }
@@ -230,7 +234,9 @@ class MockConnectionManager: CellularConnectionManager {
             completion(.complete(NetworkError.other("")))
             return
         }
-        let stateUpdateHandler = createConnectionUpdateHandler(url: url, data: data, completion: completion)
+        let stateUpdateHandler = createConnectionUpdateHandler(completion: completion) {
+            self.sendAndReceive(requestUrl: url, data: data, completion: completion)
+        }
 
         //Simulate state changes
         for state in connectionStateHandlerPlaylist {

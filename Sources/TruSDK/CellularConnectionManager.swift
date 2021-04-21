@@ -6,7 +6,7 @@ import Foundation
 import Network
 import os
 
-typealias ResultHandler = (ConnectionResult<URL, Data, Error>) -> Void
+typealias ResultHandler = (ConnectionResult<URL, [String : Any], Error>) -> Void
 //
 // Force connectivity to cellular only
 // Open the "check url" and follows all redirects
@@ -97,7 +97,9 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
         connection = createConnection(scheme: scheme, host: host)
         if let connection = connection {
-            connection.stateUpdateHandler = createConnectionUpdateHandler(url: url, data: data, completion: completion)
+            connection.stateUpdateHandler = createConnectionUpdateHandler(completion: completion, readyStateHandler: { [weak self] in
+                self?.sendAndReceive(requestUrl: url, data: data, completion: completion)
+            })
             // All connection events will be delivered on this queue.
             connection.start(queue: .main)
         } else {
@@ -106,7 +108,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
 
-    func createConnectionUpdateHandler(url: URL, data: Data, completion: @escaping ResultHandler) -> (NWConnection.State) -> Void {
+    func createConnectionUpdateHandler(completion: @escaping ResultHandler, readyStateHandler: @escaping ()-> Void) -> (NWConnection.State) -> Void {
         return { [weak self] (newState) in
             switch (newState) {
             case .setup:
@@ -115,8 +117,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 os_log("Connection State: Preparing\n")
             case .ready:
                 os_log("Connection State: Ready %s\n", self?.connection.debugDescription ?? "No connection details")
-                //URL is guaranteed to have host and scheme at this point
-                self?.sendAndReceive(requestUrl: url, data: data, completion: completion)
+                readyStateHandler() //Send and Receive
             case .waiting(let error):
                 os_log("Connection State: Waiting %s \n", error.localizedDescription)
             case .cancelled:
@@ -330,68 +331,126 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     // MARK: - Data fetch
+    /// Quite similar to check(..)
     func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)  {
-        guard let scheme = url.scheme, let host = url.host else {
+
+        guard let _ = url.scheme, let _ = url.host else {
             completion(nil)
             return
         }
 
-        startConnection(scheme: scheme, host: host)
+        var redirectCount = 0
+        checkResponseHandler = { [weak self] (response) -> Void in
 
-        guard let str = createHttpCommand(url: url),
-              let data = str.data(using: .utf8) else {
-            completion(nil)
-            return
-        }
-
-        os_log("sending data:\n", str)
-        sendAndReceiveDictionary(data: data) { (result) -> Void in
-            completion(result)
-        }
-    }
-
-    func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)  {
-        guard let scheme = url.scheme, let host = url.host else {
-            completion("")
-            return
-        }
-
-        startConnection(scheme: scheme, host: host)
-
-        guard let str = createHttpCommand(url: url),
-              let data = str.data(using: .utf8) else {
-            completion("")
-            return
-        }
-
-        os_log("sending data:\n", str)
-        sendAndReceiveDictionary(data: data) { (result) -> Void in
-            guard let r = result, let value = r[key] as? String else {
-                completion("")
+            guard let self = self else {
+                completion(nil)
                 return
             }
-            completion(value)
+
+            switch response {
+            case .follow(let url):
+                redirectCount+=1
+                if redirectCount <= self.MAX_REDIRECTS {
+                    os_log("Redirect found: %s", url.absoluteString)
+                    self.createTimer()
+                    self.activateConnectionForDataFetch(url: url, completion: self.checkResponseHandler)
+                } else {
+                    os_log("MAX Redirects reached %s", String(self.MAX_REDIRECTS))
+                    self.cancelConnection()
+                }
+            case .complete(let error):
+                if let err = error {
+                    os_log("Check completed with %s", err.localizedDescription)
+                }
+                self.cleanUp()
+                completion(nil)
+            case .data(let data):
+                completion(data)
+            }
+
+        }
+
+        os_log("opening %s", url.absoluteString)
+        self.startMonitoring()
+        self.createTimer()
+        activateConnectionForDataFetch(url: url, completion: checkResponseHandler)
+    }
+
+    /// Quite similar to activateConnection(..)
+    func activateConnectionForDataFetch(url: URL, completion: @escaping ResultHandler) {
+        guard let scheme = url.scheme,
+              let host = url.host else {
+            completion(.complete(NetworkError.other("URL has no Host or Scheme")))
+            return
+        }
+
+        guard let command = createHttpCommand(url: url),
+              let data = command.data(using: .utf8) else {
+            completion(.complete(NetworkError.other("Unable to create HTTP Request command")))
+            return
+        }
+
+        os_log("sending data:\n%s", command)
+
+        connection = createConnection(scheme: scheme, host: host)
+        if let connection = connection {
+            connection.stateUpdateHandler = createConnectionUpdateHandler(completion: completion, readyStateHandler: { [weak self] in
+                self?.sendAndReceiveDictionary(requestUrl: url, data: data, completion: completion)
+            })
+            // All connection events will be delivered on this queue.
+            connection.start(queue: .main)
+        } else {
+            os_log("Problem creating a connection ", url.absoluteString)
+            completion(.complete(NetworkError.connectionCantBeCreated("Problem creating a connection \(url.absoluteString)")))
         }
     }
 
-    func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void) {
+    /// Quite similar to sendAndReceiveDictionary
+    func sendAndReceiveDictionary(requestUrl: URL, data: Data,  completion: @escaping ResultHandler) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
-                os_log("Sending error %", type:.error, err.localizedDescription)
-                completion(nil)
+                os_log("Sending error %s", type: .error, err.localizedDescription)
+                completion(.complete(err))
+
             }
         }))
 
+        //Read the entire response body of if 200
         connection?.receiveMessage { data, context, isComplete, error in
+
             os_log("Receive isComplete: %s", isComplete.description)
-            guard let d = data else {
-                os_log("Error: Received nil data")
-                completion(nil)
+            if let err = error {
+                completion(.complete(err))
                 return
             }
-            let response = String(data: d, encoding: .utf8)!
-            os_log("Response:\n%s", response)
-            completion(self.parseJsonResponse(response: response))
+
+            if let d = data, !d.isEmpty, let response = self.decodeResponse(data: d) {
+
+                os_log("Response:\n %s", response)
+
+                let status = self.httpStatusCode(response: response)
+                os_log("\n----\nHTTP status: %s", String(status))
+
+                switch status {
+                case 301...303, 307...308:
+                    guard let url = self.parseRedirect(requestUrl: requestUrl, response: response) else {
+                        completion(.complete(NetworkError.invalidRedirectURL("Invalid URL - unable to parseRecirect")))
+                        return
+                    }
+                    completion(.follow(url))
+                case 400...451:
+                    completion(.complete(NetworkError.httpClient("HTTP Client Error:\(status)")))
+                case 500...511:
+                    completion(.complete(NetworkError.httpServer("HTTP Server Error:\(status)")))
+                case 200...206:
+                    let dict = self.parseJsonResponse(response: response)
+                    completion(.data(dict))
+                default:
+                    completion(.complete(NetworkError.other("HTTP Status can't be parsed \(status)")))
+                }
+            } else {
+                completion(.complete(NetworkError.noData("Response has no data or corrupt")))
+            }
         }
     }
 
@@ -429,6 +488,16 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
 
         return nil
+    }
+
+    func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)  {
+        self.jsonResponse(url: url) { (result) in
+            guard let r = result, let value = r[key] as? String else {
+                completion("")
+                return
+            }
+            completion(value)
+        }
     }
 
     // MARK: - Soon to be deprecated
@@ -510,9 +579,9 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
 protocol InternalAPI {
     func startConnection(scheme: String, host: String)
-    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL,Data, Error>) -> Void)
+    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL,[String:Any], Error>) -> Void)
     func parseRedirect(requestUrl: URL, response: String) -> URL?
-    func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void)
+    func sendAndReceiveDictionary(requestUrl: URL, data: Data,  completion: @escaping ResultHandler)
     func parseJsonResponse(response: String) -> [String : Any]?
     func createHttpCommand(url: URL) -> String?
     func startMonitoring()
