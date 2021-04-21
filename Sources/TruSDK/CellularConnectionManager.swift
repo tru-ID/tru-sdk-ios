@@ -19,14 +19,14 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     //os_log("", log: traceLog, type: .fault, "")
 
     let truSdkVersion = "0.1.1"
-    private var connection: NWConnection?
+    var connection: NWConnection?
 
     //Mitigation for tcp timeout not triggering any events.
     private var timer: Timer?
     private let CONNECTION_TIME_OUT = 20.0
     private let MAX_REDIRECTS = 10
     private var pathMonitor: NWPathMonitor?
-    private var checkResponseHandler: ((ConnectionResult<URL, NetworkError>) -> Void)!
+    private var checkResponseHandler: ((ConnectionResult<URL, Error>) -> Void)!
 
     // MARK: - New methods
     func check(url: URL, completion: @escaping (Error?) -> Void) {
@@ -52,11 +52,12 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                     self.createTimer()
                     self.activateConnection(url: url, completion: self.checkResponseHandler)
                 } else {
-                    self.connection?.cancel() // This should trigger a state update
+                    os_log("MAX Redirects reached %s", String(self.MAX_REDIRECTS))
+                    self.cancelConnection()
                 }
             case .complete(let error):
                 if let err = error {
-                    os_log("Check completed with ", err.localizedDescription)
+                    os_log("Check completed with %s", err.localizedDescription)
                 }
                 self.cleanUp()
                 completion(error)
@@ -71,23 +72,33 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
     }
 
-    func activateConnection(url: URL, completion: @escaping (ConnectionResult<URL, NetworkError>) -> Void) {
+    func cancelConnection() {
+        self.connection?.cancel() // This should trigger a state update
+    }
+
+    func activateConnection(url: URL, completion: @escaping (ConnectionResult<URL, Error>) -> Void) {
         guard let scheme = url.scheme,
               let host = url.host else {
-            completion(.complete(.other("URL has no Host or Scheme")))
+            completion(.complete(NetworkError.other("URL has no Host or Scheme")))
             return
         }
 
         guard let command = createHttpCommand(url: url),
               let data = command.data(using: .utf8) else {
-            completion(.complete(.other("Unable to create HTTP Request command")))
+            completion(.complete(NetworkError.other("Unable to create HTTP Request command")))
             return
         }
 
         os_log("sending data:\n%s", command)
 
         connection = createConnection(scheme: scheme, host: host)
-        connection?.stateUpdateHandler = { [weak self] (newState) in
+        connection?.stateUpdateHandler = createConnectionUpdateHandler(url: url, data: data, completion: completion)
+        // All connection events will be delivered on this queue.
+        connection?.start(queue: .main)
+    }
+
+    func createConnectionUpdateHandler(url: URL, data: Data, completion: @escaping (ConnectionResult<URL, Error>) -> Void) -> (NWConnection.State) -> Void {
+        return { [weak self] (newState) in
             switch (newState) {
             case .setup:
                 os_log("Connection State: Setup\n")
@@ -98,21 +109,18 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 //URL is guaranteed to have host and scheme at this point
                 self?.sendAndReceive(requestUrl: url, data: data, completion: completion)
             case .waiting(let error):
-                os_log("Connection State: Waiting\n")
-                completion(.complete(.other(error.localizedDescription)))
+                os_log("Connection State: Waiting %s \n", error.localizedDescription)
             case .cancelled:
                 os_log("Connection State: Cancelled\n")
-                completion(.complete(.other("Connection cancelled - possibly due to time out.")))
+                completion(.complete(NetworkError.other("Connection cancelled - either due to time out, or MAC Redirect reached")))
             case .failed(let error):
                 os_log("Connection State: Failed ->%s", type:.error, error.localizedDescription)
-                completion(.complete(.connectionFailed(error.localizedDescription)))
+                completion(.complete(error))
             @unknown default:
                 os_log("Connection ERROR State not defined\n")
-                completion(.complete(.other("Connection State: Unknown \(newState)")))
+                completion(.complete(NetworkError.other("Connection State: Unknown \(newState)")))
             }
         }
-        // All connection events will be delivered on this queue.
-        connection?.start(queue: .main)
     }
 
     func createConnection(scheme: String, host: String) -> NWConnection? {
@@ -195,7 +203,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return Int(status) ?? 0
     }
 
-    private func createTimer() {
+    func createTimer() {
         if let timer = timer, timer.isValid {
             os_log("Invalidating the existing timer", type: .debug)
             timer.invalidate()
@@ -323,7 +331,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
         os_log("sending data:\n%s", command)
 
-        let responseHandler: (ConnectionResult<URL, NetworkError>) -> Void = { [weak self] (result) -> Void in
+        let responseHandler: (ConnectionResult<URL, Error>) -> Void = { [weak self] (result) -> Void in
 
             guard let self = self else {
                 completion(nil, NetworkError.other("Unable to carry on"))
@@ -376,11 +384,11 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         connection?.start(queue: .main)
     }
 
-    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, NetworkError>) -> Void) {
+    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, Error>) -> Void) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 os_log("Sending error %s", type: .error, err.localizedDescription)
-                completion(.complete(.other(err.localizedDescription)))
+                completion(.complete(err))
 
             }
         }))
@@ -390,7 +398,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
             os_log("Receive isComplete: %s", isComplete.description)
             if let err = error {
-                completion(.complete(.other(err.localizedDescription)))
+                completion(.complete(err))
                 return
             }
 
@@ -404,21 +412,21 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 switch status {
                 case 301...303, 307...308:
                     guard let url = self.parseRedirect(requestUrl: requestUrl, response: response) else {
-                        completion(.complete(.invalidRedirectURL("Invalid URL - unable to parseRecirect")))
+                        completion(.complete(NetworkError.invalidRedirectURL("Invalid URL - unable to parseRecirect")))
                         return
                     }
                     completion(.follow(url))
                 case 400...451:
-                    completion(.complete(.httpClient("HTTP Client Error:\(status)")))
+                    completion(.complete(NetworkError.httpClient("HTTP Client Error:\(status)")))
                 case 500...511:
-                    completion(.complete(.httpServer("HTTP Server Error:\(status)")))
+                    completion(.complete(NetworkError.httpServer("HTTP Server Error:\(status)")))
                 case 200...206:
                     completion(.complete(nil))
                 default:
-                    completion(.complete(.other("HTTP Status can't be parsed \(status)")))
+                    completion(.complete(NetworkError.other("HTTP Status can't be parsed \(status)")))
                 }
             } else {
-                completion(.complete(.noData("Response has no data or corrupt")))
+                completion(.complete(NetworkError.noData("Response has no data or corrupt")))
             }
         }
     }
@@ -491,7 +499,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
 protocol InternalAPI {
     func startConnection(scheme: String, host: String)
-    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, NetworkError>) -> Void)
+    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, Error>) -> Void)
     func parseRedirect(requestUrl: URL, response: String) -> URL?
     func sendAndReceiveDictionary(data: Data, completion: @escaping ([String : Any]?) -> Void)
     func parseJsonResponse(response: String) -> [String : Any]?
