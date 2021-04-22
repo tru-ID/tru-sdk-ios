@@ -3,6 +3,13 @@
 Change Log
 ==========
 
+## Version 0.1.1
+_2021-04-20_
+
+**Changes**
+* Requests are made after NWConnection state is ready, is connection can not be made Timeout triggers a cancel.
+* New method `check(url: URL, completion: @escaping (Error?) -> Void)` is will handle the new flow. Existing method  `check(url: URL, completion: @escaping (Any?, Error?) -> Void)` will be deprecated.
+
 ## Version 0.1.0
 
 _2021-04-15_

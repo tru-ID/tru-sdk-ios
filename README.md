@@ -31,6 +31,10 @@ tru.openCheckUrl(url: url, completion: completion)
 
 ## Release History
 
+* 0.1.1
+    * Safeguarding against correct response data
+    * Initiating the request send/receive with Network state = Ready
+    * Additional method signature refactoring
 * 0.1.0
     * Now min target is iOS13 and macOS 10.14
     * Additional code improvements

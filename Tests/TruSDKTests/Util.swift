@@ -1,11 +1,13 @@
 //
-//  File 2.swift
+//  Util.swift
 //  
 //
 //  Created by Murat Yakici on 19/04/2021.
 //
 
 import XCTest
+import Network
+
 @testable import TruSDK
 
 func deviceString() -> String {
@@ -136,12 +138,71 @@ func corruptHTTPResponse() -> String {
     """
 }
 
+// The purpose of this mock is to better support the testing of complex state connection changes
+class MockStateHandlingConnectionManager: CellularConnectionManager {
+    typealias CompletionHandler = (Any?, Error?) -> Void
+
+    // For testing multiple redirects
+    private var playList: [ConnectionResult<URL, [String : Any], Error>]
+    // This would help us simulate connection state changes
+    var connectionStateHandlerPlaylist: [NWConnection.State] = [.setup, .preparing, .ready]
+    var stateUpdateHandler: ((NWConnection.State) -> Void)!
+
+    init(playList: [ConnectionResult<URL, [String : Any], Error>]) {
+        self.playList = playList
+    }
+
+    // MARK: - New methods
+    override func check(url: URL, completion: @escaping (Error?) -> Void) {
+        super.check(url: url, completion: completion)
+    }
+
+    override func activateConnection(url: URL, completion: @escaping ResultHandler) {
+        let url = URL(string: "https://www.tru.id")!
+        let mockCommand = createHttpCommand(url: url)
+        let mockData = mockCommand?.data(using: .utf8)
+        guard let data = mockData else {
+            return
+        }
+
+        stateUpdateHandler = createConnectionUpdateHandler(completion: completion) {
+            self.sendAndReceive(requestUrl: url, data: data, completion: completion)
+        }
+
+        //Simulate state changes
+        for state in connectionStateHandlerPlaylist {
+            stateUpdateHandler(state)
+        }
+    }
+
+    override func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
+        if let result = playList.popLast() {
+            completion(result)
+        } else {
+            XCTFail("Exhasuted sending all Mock Test results with closure, and still sendAndReceive is being called.")
+        }
+
+    }
+
+    // MARK: - Utility methods
+    override func createTimer() {
+        //Empty implementation to avoid accidental triggers
+    }
+    
+    override func cancelExistingConnection() {
+        self.stateUpdateHandler(.cancelled)
+    }
+
+}
+
 
 class MockConnectionManager: CellularConnectionManager {
     typealias CompletionHandler = (Any?, Error?) -> Void
 
     // For testing multiple redirects
-    private var results: [ConnectionResult<URL, NetworkError>]
+    private var playList: [ConnectionResult<URL, [String : Any], Error>]
+    // This would help us simulate connection state changes
+    var connectionStateHandlerPlaylist: [NWConnection.State] = [.setup, .preparing, .ready]
 
     var isStartMonitorCalled: Bool = false
     var isStopMonitorCalled: Bool = false
@@ -149,10 +210,50 @@ class MockConnectionManager: CellularConnectionManager {
     var connectionLifecycle = [String]()
     let shouldFailCreatingHttpCommand: Bool
 
-    init(result: [ConnectionResult<URL, NetworkError>], shouldFailCreatingHttpCommand: Bool = false) {
-        self.results = result
+    // Support for new tests
+    var isCleanUpCalled: Bool = false
+    var isActivateConnectionCalled: Bool = false
+
+
+    init(playList: [ConnectionResult<URL, [String : Any], Error>], shouldFailCreatingHttpCommand: Bool = false) {
+        self.playList = playList
         self.shouldFailCreatingHttpCommand = shouldFailCreatingHttpCommand
     }
+
+    // MARK: - New methods
+    override func check(url: URL, completion: @escaping (Error?) -> Void) {
+        super.check(url: url, completion: completion)
+    }
+
+    override func activateConnection(url: URL, completion: @escaping ResultHandler) {
+        self.isActivateConnectionCalled = true
+        self.connectionLifecycle.append("activateConnection")
+        let mockCommand = createHttpCommand(url: url)
+        let mockData = mockCommand?.data(using: .utf8)
+        guard let data = mockData else {
+            completion(.complete(NetworkError.other("")))
+            return
+        }
+        let stateUpdateHandler = createConnectionUpdateHandler(completion: completion) {
+            self.sendAndReceive(requestUrl: url, data: data, completion: completion)
+        }
+
+        //Simulate state changes
+        for state in connectionStateHandlerPlaylist {
+            if state == .cancelled {
+                self.fireTimer()
+            } else {
+                stateUpdateHandler(state)
+            }
+        }
+    }
+
+    override func cleanUp() {
+        isCleanUpCalled = true
+        self.stopMonitoring()
+    }
+    
+    // MARK: - Soon to be deprecated
 
     override func openCheckUrl(url: URL, completion: @escaping CompletionHandler) {
         super.openCheckUrl(url: url, completion: completion)
@@ -165,8 +266,8 @@ class MockConnectionManager: CellularConnectionManager {
         self.connectionLifecycle.append("startConnection")
     }
 
-    override func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping (ConnectionResult<URL, NetworkError>) -> Void) {
-        if let result = results.popLast() {
+    override func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
+        if let result = playList.popLast() {
             completion(result)
         } else {
             XCTFail("Exhasuted sending all Mock Test results with closure, and still sendAndReceive is being called.")
@@ -174,6 +275,11 @@ class MockConnectionManager: CellularConnectionManager {
 
     }
 
+    // MARK: - Utility methods
+    override func createTimer() {
+        //Empty implementation to avoid accidental triggers
+    }
+    
     override func createHttpCommand(url: URL) -> String? {
         if shouldFailCreatingHttpCommand {
             return nil
