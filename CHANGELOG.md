@@ -2,7 +2,13 @@
 
 Change Log
 ==========
+## Version 0.2.0
+_2021-06-02_
 
+**New**
+* Introducing a new API isReachable(...), which provides information as to whether the network call was made over cellular,
+   and if so the details about the mobile carrier.
+   
 ## Version 0.1.1
 _2021-04-20_
 

@@ -13,11 +13,6 @@ open class TruSDK {
         self.init(connectionManager: CellularConnectionManager())
     }
 
-    @available(*, deprecated, renamed: "check(url:completion:)")
-    public func check(url: URL, completion: @escaping (Any?, Error?) -> Void) {
-        connectionManager.openCheckUrl(url: url, completion: completion)
-    }
-
     /// This method perform a request given a URL
     /// - Parameters:
     ///   - url: URL provided by Tru.Id
@@ -26,12 +21,21 @@ open class TruSDK {
         connectionManager.check(url: url, completion: completion)
     }
 
+    public func isReachable(completion: @escaping ( Result<ReachabilityDetails, ReachabilityError>) -> Void) {
+        connectionManager.isReachable(completion: completion)
+    }
+
     public func jsonResponse(for url: URL, completion: @escaping ([String : Any]?) -> Void) {
         connectionManager.jsonResponse(url: url, completion: completion)
     }
 
     public func jsonPropertyValue(for key: String, from url: URL, completion: @escaping  (String) -> Void) {
         connectionManager.jsonPropertyValue(for: key, from: url, completion: completion)
+    }
+
+    @available(*, deprecated, renamed: "check(url:completion:)")
+    public func check(url: URL, completion: @escaping (Any?, Error?) -> Void) {
+        connectionManager.openCheckUrl(url: url, completion: completion)
     }
 
     @available(*, deprecated, renamed: "check(url:completion:)")
