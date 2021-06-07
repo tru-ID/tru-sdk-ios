@@ -27,10 +27,16 @@ let package = Package(
 import TruSDK
 let tru: TruSDK = TruSDK()
 tru.openCheckUrl(url: url, completion: completion)
+tru.isReachable { result in
+...
+}
 ```
 
 ## Release History
-
+* 0.2.0
+   * Introducing a new API isReachable(...), which provides information as to whether the network call was made over cellular,
+   and if so the details about the mobile carrier.
+   
 * 0.1.1
     * Safeguarding against correct response data
     * Initiating the request send/receive with Network state = Ready

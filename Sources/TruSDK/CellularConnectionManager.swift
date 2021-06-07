@@ -19,7 +19,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     let traceLog = OSLog(subsystem: "id.tru.sdk", category: "trace")
     //os_log("", log: traceLog, type: .fault, "")
 
-    let truSdkVersion = "0.1.1"
+    let truSdkVersion = "0.2.0"
     var connection: NWConnection?
 
     //Mitigation for tcp timeout not triggering any events.
@@ -29,7 +29,11 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     private var pathMonitor: NWPathMonitor?
     private var checkResponseHandler: ResultHandler!
 
-    // MARK: - New methods
+    private lazy var apiHelper: APIHelper = {
+        return APIHelper()
+    }()
+
+    // MARK: - ConnectionManager API
     func check(url: URL, completion: @escaping (Error?) -> Void) {
 
         guard let _ = url.scheme, let _ = url.host else {
@@ -67,7 +71,6 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 //ignore, check method is not fetching for data
                 os_log("Data received - this method should not be handling data")
             }
-
         }
 
         os_log("opening %s", url.absoluteString)
@@ -80,6 +83,76 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
     }
 
+    /// Sends a request to the DEVICE_IP endpoint, and returns details whether the connection was over cellular or not.
+    /// Unlike `check(...)` method, this method uses system's default network implementation via URLSession.
+    func isReachable(completion: @escaping (ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
+        let url = URL(string: apiHelper.DEVICE_IP_URL)!
+        let request = apiHelper.createURLRequest(method: "GET", url: url, payload: nil)
+        apiHelper.makeRequest(urlRequest: request, onCompletion: completion)
+    }
+
+    /// Quite similar to check(..)
+    func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)  {
+
+        guard let _ = url.scheme, let _ = url.host else {
+            completion(nil)
+            return
+        }
+
+        var redirectCount = 0
+        // This closuser will be called on main thread
+        checkResponseHandler = { [weak self] (response) -> Void in
+
+            guard let self = self else {
+                completion(nil)
+                return
+            }
+
+            switch response {
+            case .follow(let url):
+                redirectCount+=1
+                if redirectCount <= self.MAX_REDIRECTS {
+                    os_log("Redirect found: %s", url.absoluteString)
+                    self.createTimer()
+                    self.activateConnectionForDataFetch(url: url, completion: self.checkResponseHandler)
+                } else {
+                    os_log("MAX Redirects reached %s", String(self.MAX_REDIRECTS))
+                    self.fireTimer()
+                }
+            case .complete(let error):
+                if let err = error {
+                    os_log("Check completed with %s", err.localizedDescription)
+                }
+                self.cleanUp()
+                completion(nil)
+            case .data(let data):
+                os_log("Data received")
+                self.cleanUp()
+                completion(data)
+            }
+
+        }
+
+        os_log("opening %s", url.absoluteString)
+        //Initiating on the main thread to synch, as all connection update/state events will also be called on main thread
+        DispatchQueue.main.async {
+            self.startMonitoring()
+            self.createTimer()
+            self.activateConnection(url: url, completion: self.checkResponseHandler)
+        }
+    }
+
+    func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)  {
+        self.jsonResponse(url: url) { (result) in
+            guard let r = result, let value = r[key] as? String else {
+                completion("")
+                return
+            }
+            completion(value)
+        }
+    }
+
+    // MARK: - Internal
     func cancelExistingConnection() {
         if self.connection != nil {
             self.connection?.cancel() // This should trigger a state update
@@ -341,57 +414,6 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     // MARK: - Data fetch
-    /// Quite similar to check(..)
-    func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)  {
-
-        guard let _ = url.scheme, let _ = url.host else {
-            completion(nil)
-            return
-        }
-
-        var redirectCount = 0
-        // This closuser will be called on main thread
-        checkResponseHandler = { [weak self] (response) -> Void in
-
-            guard let self = self else {
-                completion(nil)
-                return
-            }
-
-            switch response {
-            case .follow(let url):
-                redirectCount+=1
-                if redirectCount <= self.MAX_REDIRECTS {
-                    os_log("Redirect found: %s", url.absoluteString)
-                    self.createTimer()
-                    self.activateConnectionForDataFetch(url: url, completion: self.checkResponseHandler)
-                } else {
-                    os_log("MAX Redirects reached %s", String(self.MAX_REDIRECTS))
-                    self.fireTimer()
-                }
-            case .complete(let error):
-                if let err = error {
-                    os_log("Check completed with %s", err.localizedDescription)
-                }
-                self.cleanUp()
-                completion(nil)
-            case .data(let data):
-                os_log("Data received")
-                self.cleanUp()
-                completion(data)
-            }
-
-        }
-
-        os_log("opening %s", url.absoluteString)
-        //Initiating on the main thread to synch, as all connection update/state events will also be called on main thread
-        DispatchQueue.main.async {
-            self.startMonitoring()
-            self.createTimer()
-            self.activateConnection(url: url, completion: self.checkResponseHandler)
-        }
-    }
-
     /// Quite similar to activateConnection(..)
     func activateConnectionForDataFetch(url: URL, completion: @escaping ResultHandler) {
         self.cancelExistingConnection()
@@ -507,15 +529,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return nil
     }
 
-    func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)  {
-        self.jsonResponse(url: url) { (result) in
-            guard let r = result, let value = r[key] as? String else {
-                completion("")
-                return
-            }
-            completion(value)
-        }
-    }
+
 
     // MARK: - Soon to be deprecated
     func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void) {
@@ -608,6 +622,9 @@ protocol InternalAPI {
 // MARK: - Internal API
 protocol ConnectionManager {
     func check(url: URL, completion: @escaping (Error?) -> Void)
+    func isReachable(completion: @escaping (ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) -> Void)
+
+    //The following methods are deprecated
     func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void)
     func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)
     func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)
