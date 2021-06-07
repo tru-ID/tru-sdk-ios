@@ -21,14 +21,32 @@ open class TruSDK {
         connectionManager.check(url: url, completion: completion)
     }
 
-    public func isReachable(completion: @escaping ( Result<ReachabilityDetails, ReachabilityError>) -> Void) {
-        connectionManager.isReachable(completion: completion)
+    /// This method perform a request to a TruId enpoint and reports back the details if the connection was made over
+    /// cellular.
+    /// - Parameters:
+    ///   - completion: closure to report check result. Note that, this closure will be called on the Main Thread.
+    public func isReachable(completion: @escaping (Result<ReachabilityDetails?, ReachabilityError>) -> Void) {
+        connectionManager.isReachable { connectionResult in
+            switch connectionResult {
+            case .complete(let reachabilityError): do {
+                if let error = reachabilityError {
+                    completion(.failure(error))
+                } else {
+                    completion(.failure(ReachabilityError(type: "Unknown", title: "No Error type", status: -1, detail: "Received an error with no known type")))
+                }
+            }
+            case .data(let reachabilityDetails): completion(.success(reachabilityDetails))
+            case .follow(_): completion(.failure(ReachabilityError(type: "HTTP", title: "Redirect", status: 302, detail: "Unexpected Redirect found!")))
+            }
+        }
     }
 
+    @available(*, deprecated, renamed: "isReachable(completion:)")
     public func jsonResponse(for url: URL, completion: @escaping ([String : Any]?) -> Void) {
         connectionManager.jsonResponse(url: url, completion: completion)
     }
 
+    @available(*, deprecated, renamed: "isReachable(completion:)")
     public func jsonPropertyValue(for key: String, from url: URL, completion: @escaping  (String) -> Void) {
         connectionManager.jsonPropertyValue(for: key, from: url, completion: completion)
     }
@@ -52,7 +70,7 @@ open class TruSDK {
         connectionManager.openCheckUrl(url: url, completion: com)
     }
 
-    @available(*, deprecated, renamed: "jsonResponse(for:completion:)")
+    @available(*, deprecated, renamed: "isReachable(completion:)")
     public func getJsonResponse(url: String, completion: @escaping ([String : Any]?) -> Void) {
         guard let url = URL(string: url) else {
             completion(nil)
@@ -61,7 +79,7 @@ open class TruSDK {
         connectionManager.jsonResponse(url: url, completion: completion)
     }
 
-    @available(*, deprecated, renamed: "jsonPropertyValue(for:from:completion:)")
+    @available(*, deprecated, renamed: "isReachable(completion:)")
     public func getJsonPropertyValue(url: String, key: String, completion: @escaping  (String) -> Void) {
         guard let url = URL(string: url) else {
             // TODO: We need to return some thing meaningful

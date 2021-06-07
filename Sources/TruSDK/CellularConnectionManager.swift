@@ -29,7 +29,11 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     private var pathMonitor: NWPathMonitor?
     private var checkResponseHandler: ResultHandler!
 
-    // MARK: - API
+    private lazy var apiHelper: APIHelper = {
+        return APIHelper()
+    }()
+
+    // MARK: - ConnectionManager API
     func check(url: URL, completion: @escaping (Error?) -> Void) {
 
         guard let _ = url.scheme, let _ = url.host else {
@@ -79,11 +83,12 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
     }
 
-    func isReachable(completion: @escaping (Result<ReachabilityDetails, ReachabilityError>) -> Void) {
-        let url = URL(string: "https://eu.api.tru.id/public/coverage/v0.1/device_ip")!
-        let endpoint = SessionEndpoint()
-        let request = endpoint.createURLRequest(method: "GET", url: url, payload: nil)
-        endpoint.makeRequest(urlRequest: request, handler: completion)
+    /// Sends a request to the DEVICE_IP endpoint, and returns details whether the connection was over cellular or not.
+    /// Unlike `check(...)` method, this method uses system's default network implementation via URLSession.
+    func isReachable(completion: @escaping (ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
+        let url = URL(string: apiHelper.DEVICE_IP_URL)!
+        let request = apiHelper.createURLRequest(method: "GET", url: url, payload: nil)
+        apiHelper.makeRequest(urlRequest: request, onCompletion: completion)
     }
 
     /// Quite similar to check(..)
@@ -617,7 +622,9 @@ protocol InternalAPI {
 // MARK: - Internal API
 protocol ConnectionManager {
     func check(url: URL, completion: @escaping (Error?) -> Void)
-    func isReachable(completion: @escaping (Result<ReachabilityDetails, ReachabilityError>) -> Void)
+    func isReachable(completion: @escaping (ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) -> Void)
+
+    //The following methods are deprecated
     func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void)
     func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)
     func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)

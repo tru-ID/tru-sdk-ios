@@ -195,6 +195,16 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
 
 }
 
+class MockDeviceIPConnectionManager: CellularConnectionManager {
+    private var result: ConnectionResult<URL, ReachabilityDetails, ReachabilityError>
+    init(result: ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) {
+        self.result = result
+    }
+
+    override func isReachable(completion: @escaping (ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
+        completion(result)
+    }
+}
 
 class MockConnectionManager: CellularConnectionManager {
     typealias CompletionHandler = (Any?, Error?) -> Void
