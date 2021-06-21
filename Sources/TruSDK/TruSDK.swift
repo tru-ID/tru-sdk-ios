@@ -1,5 +1,5 @@
 import Foundation
-@available(macOS 10.14, *)
+@available(macOS 10.15, *)
 @available(iOS 13.0, *)
 open class TruSDK {
     
@@ -13,7 +13,7 @@ open class TruSDK {
         self.init(connectionManager: CellularConnectionManager())
     }
 
-    /// This method perform a request given a URL
+    /// This method perform a check request given a URL
     /// - Parameters:
     ///   - url: URL provided by Tru.Id
     ///   - completion: closure to report check result. Note that, this closure will be called on the Main Thread.
@@ -21,6 +21,14 @@ open class TruSDK {
         connectionManager.check(url: url, completion: completion)
     }
 
+    /// This method perform a check request given a URL
+    /// - Parameters:
+    ///   - url: URL provided by Tru.Id
+    ///   - completion: closure to report check result and the trace information. Note that, this closure will be called on the Main Thread.
+    func checkWithTrace(url: URL, completion: @escaping (Error?, TraceInfo?) -> Void) {
+        connectionManager.checkWithTrace(url: url, completion: completion)
+    }
+    
     /// This method perform a request to a TruId enpoint and reports back the details if the connection was made over
     /// cellular.
     /// - Parameters:

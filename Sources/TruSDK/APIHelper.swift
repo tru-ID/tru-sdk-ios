@@ -83,3 +83,31 @@ final class APIHelper {
         return urlRequest
     }
 }
+
+public func userAgent(sdkVersion: String) -> String {
+    return "tru-sdk-ios/\(sdkVersion) \(deviceString())"
+}
+
+public func deviceString() -> String {
+    var device: String
+    #if canImport(UIKit)
+    device = UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
+    #elseif os(macOS)
+    device = "macOS / Unknown"
+    #endif
+    return device
+}
+
+func deviceInfo() -> String {
+    let manufacturer = "Apple" //Build.MANUFACTURER //The manufacturer of the product/hardware.
+    var model =  "An Apple Device"//Build.MODEL ///** The end-user-visible name for the end product. */
+    var osName = "Unknown" //Version
+    var osVersion = ""//System version
+    #if canImport(UIKit)
+    osName = UIDevice.current.systemName //name of the operating system
+    osVersion = UIDevice.current.systemVersion //current version of the operating system
+    model = UIDevice.current.model //The model of the device.
+    #endif
+
+    return "DeviceInfo: \(manufacturer), \(model) ,\(osName), \(osVersion), \n User-Agent: \(userAgent(sdkVersion: TruSdkVersion))\n"
+}

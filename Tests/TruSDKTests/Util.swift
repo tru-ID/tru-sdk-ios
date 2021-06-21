@@ -10,18 +10,7 @@ import Network
 
 @testable import TruSDK
 
-func deviceString() -> String {
-    var device: String
-    #if canImport(UIKit)
-    device = UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
-    #elseif os(macOS)
-    device = "macOS / Unknown"
-    #endif
-    return device
-}
-
 func httpCommand(url: URL, sdkVersion: String) -> String {
-    let device = deviceString()
     var query = ""
     if let q = url.query {
         query = "?\(q)"
@@ -29,7 +18,7 @@ func httpCommand(url: URL, sdkVersion: String) -> String {
     let expectation = """
     GET \(url.path)\(query) HTTP/1.1\
     \r\nHost: \(url.host!)\
-    \r\nUser-Agent: tru-sdk-ios/\(sdkVersion) \(device)\
+    \r\nUser-Agent: \(userAgent(sdkVersion: sdkVersion))\
     \r\nAccept: */*\
     \r\nConnection: close\r\n\r\n
     """
