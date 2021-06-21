@@ -262,7 +262,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         tcpOptions.enableKeepalive = false
 
         var tlsOptions: NWProtocolTLS.Options?
-        var fport = (port != nil ? NWEndpoint.Port(integerLiteral: NWEndpoint.Port.IntegerLiteralType(port!)) : NWEndpoint.Port.http)
+        var fport = NWEndpoint.Port.http
 
         if (scheme.starts(with:"https")) {
             fport = (port != nil ? NWEndpoint.Port(integerLiteral: NWEndpoint.Port.IntegerLiteralType(port!)) : NWEndpoint.Port.https)
