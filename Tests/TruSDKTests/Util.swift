@@ -18,7 +18,7 @@ func httpCommand(url: URL, sdkVersion: String) -> String {
     let expectation = """
     GET \(url.path)\(query) HTTP/1.1\
     \r\nHost: \(url.host!)\
-    \r\nUser-Agent: \(userAgent(sdkVersion: sdkVersion))\
+    \r\nUser-Agent: \(userAgent(sdkVersion: sdkVersion)) \
     \r\nAccept: */*\
     \r\nConnection: close\r\n\r\n
     """

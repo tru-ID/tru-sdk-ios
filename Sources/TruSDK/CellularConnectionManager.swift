@@ -191,7 +191,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
         self.traceCollector.addDebug(log: "sending data:\n\(command)")
         self.traceCollector.addTrace(log: "\ncommand:\n\(self.traceCollector.now())")
-        connection = createConnection(scheme: scheme, host: host)
+        connection = createConnection(scheme: scheme, host: host, port: url.port)
         if let connection = connection {
             connection.stateUpdateHandler = createConnectionUpdateHandler(completion: completion, readyStateHandler: { [weak self] in
                 self?.sendAndReceive(requestUrl: url, data: data, completion: completion)
@@ -249,9 +249,11 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return cmd
     }
 
-    func createConnection(scheme: String, host: String) -> NWConnection? {
-        if scheme.isEmpty || host.isEmpty ||
-            !(scheme.hasPrefix("http") || scheme.hasPrefix("https")) {
+    func createConnection(scheme: String, host: String, port: Int? = nil) -> NWConnection? {
+        if scheme.isEmpty ||
+            host.isEmpty ||
+            !(scheme.hasPrefix("http") ||
+                scheme.hasPrefix("https")) {
             return nil
         }
 
@@ -260,16 +262,16 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         tcpOptions.enableKeepalive = false
 
         var tlsOptions: NWProtocolTLS.Options?
-        var port = NWEndpoint.Port.http
+        var fport = (port != nil ? NWEndpoint.Port(integerLiteral: NWEndpoint.Port.IntegerLiteralType(port!)) : NWEndpoint.Port.http)
 
         if (scheme.starts(with:"https")) {
-            port = NWEndpoint.Port.https
+            fport = (port != nil ? NWEndpoint.Port(integerLiteral: NWEndpoint.Port.IntegerLiteralType(port!)) : NWEndpoint.Port.https)
             tlsOptions = .init()
             tcpOptions.enableFastOpen = true //Save on tcp round trip by using first tls packet
         }
 
-
-        self.traceCollector.addDebug(log: "connection scheme \(scheme) \(String(port.rawValue))")
+        self.traceCollector.addTrace(log: "Start connection \(host) \(fport.rawValue) \(scheme) \(self.traceCollector.now())\n")
+        self.traceCollector.addDebug(log: "connection scheme \(scheme) \(String(fport.rawValue))")
         let params = NWParameters(tls: tlsOptions , tcp: tcpOptions)
         params.serviceClass = .responsiveData
         // force network connection to cellular only
@@ -277,7 +279,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         params.prohibitExpensivePaths = false
         params.prohibitedInterfaceTypes = [.wifi]
 
-        connection = NWConnection(host: NWEndpoint.Host(host), port: port, using: params)
+        connection = NWConnection(host: NWEndpoint.Host(host), port: fport, using: params)
 
         return connection
     }
@@ -461,7 +463,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
         self.traceCollector.addDebug(log: "sending data:\n\(command)")
 
-        connection = createConnection(scheme: scheme, host: host)
+        connection = createConnection(scheme: scheme, host: host, port: url.port)
         if let connection = connection {
             connection.stateUpdateHandler = createConnectionUpdateHandler(completion: completion, readyStateHandler: { [weak self] in
                 self?.sendAndReceiveDictionary(requestUrl: url, data: data, completion: completion)
