@@ -272,7 +272,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
         self.traceCollector.addTrace(log: "Start connection \(host) \(fport.rawValue) \(scheme) \(self.traceCollector.now())\n")
         self.traceCollector.addDebug(log: "connection scheme \(scheme) \(String(fport.rawValue))")
-        let params = NWParameters(tls: tlsOptions , tcp: tcpOptions)
+        let params = NWParameters(tls: tlsOptions , tcp: tcpOptions)        
         params.serviceClass = .responsiveData
         // force network connection to cellular only
         params.requiredInterfaceType = .cellular
