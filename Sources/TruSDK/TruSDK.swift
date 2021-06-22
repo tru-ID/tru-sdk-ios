@@ -25,7 +25,7 @@ open class TruSDK {
     /// - Parameters:
     ///   - url: URL provided by Tru.Id
     ///   - completion: closure to report check result and the trace information. Note that, this closure will be called on the Main Thread.
-    func checkWithTrace(url: URL, completion: @escaping (Error?, TraceInfo?) -> Void) {
+    public func checkWithTrace(url: URL, completion: @escaping (Error?, TraceInfo?) -> Void) {
         connectionManager.checkWithTrace(url: url, completion: completion)
     }
     

@@ -2,6 +2,14 @@
 
 Change Log
 ==========
+## Version 0.2.3
+_2021-06-22_
+
+   * Bug fix checkWithTrace(...) public interface
+   * Bug fix on iOS target
+   **New**
+   * Introducing a new API checkWithTrace(...), performs a check given a Tru.Id URL and provides trace information.
+   
 ## Version 0.2.0
 _2021-06-02_
 
@@ -17,7 +25,6 @@ _2021-04-20_
 * New method `check(url: URL, completion: @escaping (Error?) -> Void)` is will handle the new flow. Existing method  `check(url: URL, completion: @escaping (Any?, Error?) -> Void)` will be deprecated.
 
 ## Version 0.1.0
-
 _2021-04-15_
 
 **Changes**
@@ -53,4 +60,4 @@ _2021-04-15_
 * 0.0.2
     * RedirectManager openCheckUrl completion support
 * 0.0.1
-    * Work in progress    
+    * Work in progress

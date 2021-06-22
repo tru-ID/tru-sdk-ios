@@ -89,7 +89,7 @@ public class DebugInfo {
     internal let dateUtils = DateUtils()
     private var bufferMap = Dictionary<String, String>()
 
-    func add(tag: String? = nil, log: String) {
+    internal func add(tag: String? = nil, log: String) {
         guard let tag = tag else {
             self.bufferMap[dateUtils.now()] = "\(log)"
             return
@@ -97,11 +97,11 @@ public class DebugInfo {
         self.bufferMap[dateUtils.now()] = "\(tag) - \(log)"
     }
 
-    func clear() {
+    internal func clear() {
         bufferMap.removeAll()
     }
 
-    func toString() -> String {
+    public func toString() -> String {
         var stringBuffer = ""
         for key in bufferMap.keys.sorted() {
             guard let value = bufferMap[key] else { break }
@@ -111,9 +111,9 @@ public class DebugInfo {
     }
 }
 
-struct TraceInfo {
-    let trace: String
-    let debugInfo: DebugInfo
+public struct TraceInfo {
+    public let trace: String
+    public let debugInfo: DebugInfo
 }
 
 func isoTimestampUsingCurrentTimeZone() -> String {

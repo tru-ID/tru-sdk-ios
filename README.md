@@ -40,6 +40,8 @@ tru.isReachable { result in
 ```
 
 ## Release History
+* 0.2.3
+   * Bug fix checkWithTrace(...) public interface
 * 0.2.2
    * Bug fix on iOS target
 * 0.2.1
