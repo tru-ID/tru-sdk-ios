@@ -389,6 +389,50 @@ extension TrusdkCheckTests {
         XCTAssertNil(connection)
     }
 
+    func testCreateConnection_GivenDefaultPorts_ShouldReturn_Nil() {
+        let expectedTLSPort = 443
+        let expectedTCPPort = 80
+        let expectedHost = "trud.id"
+
+        // Test HTTP
+        var connection = connectionManager.createConnection(scheme: "https",
+                                                            host: expectedHost)
+
+        XCTAssertNotNil(connection)
+        var conDebug = connection!.debugDescription
+        XCTAssertTrue(conDebug.contains("\(expectedHost):\(expectedTLSPort)"), "Port value is NOt as expected")
+
+        // Test HTTP
+        connection = connectionManager.createConnection(scheme: "http",
+                                                        host: expectedHost)
+        XCTAssertNotNil(connection)
+        conDebug = connection!.debugDescription
+        XCTAssertTrue(conDebug.contains("\(expectedHost):\(expectedTCPPort)"), "Port value is NOt as expected")
+    }
+
+    func testCreateConnection_GivenArbitraryPort_ShouldReturn_Nil() {
+        let expectedTLSPort = 71
+        let expectedTCPPort = 553
+        let expectedHost = "trud.id"
+
+        // Test HTTP
+        var connection = connectionManager.createConnection(scheme: "https",
+                                                            host: expectedHost,
+                                                            port: expectedTLSPort)
+        
+        XCTAssertNotNil(connection)
+        var conDebug = connection!.debugDescription
+        XCTAssertTrue(conDebug.contains("\(expectedHost):\(expectedTLSPort)"), "Port value is NOt as expected")
+
+        // Test HTTP
+        connection = connectionManager.createConnection(scheme: "http",
+                                                        host: expectedHost,
+                                                        port: expectedTCPPort)
+        XCTAssertNotNil(connection)
+        conDebug = connection!.debugDescription
+        XCTAssertTrue(conDebug.contains("\(expectedHost):\(expectedTCPPort)"), "Port value is NOt as expected")
+    }
+
     func testCreateConnection_GivenEmptySchemOrHost_ShouldReturn_Nil() {
         var connection = connectionManager.createConnection(scheme: "", host: "")
         XCTAssertNil(connection)

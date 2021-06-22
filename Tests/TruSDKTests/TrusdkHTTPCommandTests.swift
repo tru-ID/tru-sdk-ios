@@ -44,7 +44,7 @@ extension TrusdkHTTPCommandTests {
 
         let urlString = "https://swift.org"
         let url = URL(string: urlString)!
-        let expectation = httpCommand(url: url, sdkVersion: connectionManager.truSdkVersion)
+        let expectation = httpCommand(url: url, sdkVersion: TruSdkVersion)
 
         let httpCommand = connectionManager.createHttpCommand(url: url)
         XCTAssertEqual(expectation, httpCommand)
@@ -56,7 +56,7 @@ extension TrusdkHTTPCommandTests {
 
         let url = URL(string: urlString)!
 
-        let expectation = httpCommand(url: url, sdkVersion: connectionManager.truSdkVersion)
+        let expectation = httpCommand(url: url, sdkVersion: TruSdkVersion)
 
         let httpCommand = connectionManager.createHttpCommand(url: url)
         XCTAssertEqual(expectation, httpCommand)

@@ -7,6 +7,7 @@ import Network
 import os
 
 typealias ResultHandler = (ConnectionResult<URL, [String : Any], Error>) -> Void
+let TruSdkVersion = "0.2.1"
 //
 // Force connectivity to cellular only
 // Open the "check url" and follows all redirects
@@ -16,10 +17,6 @@ typealias ResultHandler = (ConnectionResult<URL, [String : Any], Error>) -> Void
 @available(iOS 13.0, *)
 class CellularConnectionManager: ConnectionManager, InternalAPI {
 
-    let traceLog = OSLog(subsystem: "id.tru.sdk", category: "trace")
-    //os_log("", log: traceLog, type: .fault, "")
-
-    let truSdkVersion = "0.2.0"
     var connection: NWConnection?
 
     //Mitigation for tcp timeout not triggering any events.
@@ -31,6 +28,10 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
     private lazy var apiHelper: APIHelper = {
         return APIHelper()
+    }()
+
+    lazy var traceCollector: TraceCollector = {
+        TraceCollector()
     }()
 
     // MARK: - ConnectionManager API
@@ -52,38 +53,49 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
             switch response {
             case .follow(let url):
-                redirectCount+=1
+                redirectCount += 1
                 if redirectCount <= self.MAX_REDIRECTS {
-                    os_log("Redirect found: %s", url.absoluteString)
+                    self.traceCollector.addDebug(log: "Redirect found: \(url.absoluteString)")
+                    self.traceCollector.addTrace(log: "\nfound redirect: \(url) - \(self.traceCollector.now())")
                     self.createTimer()
                     self.activateConnection(url: url, completion: self.checkResponseHandler)
                 } else {
-                    os_log("MAX Redirects reached %s", String(self.MAX_REDIRECTS))
+                    self.traceCollector.addDebug(log: "MAX Redirects reached \(String(self.MAX_REDIRECTS))")
                     self.fireTimer()
                 }
             case .complete(let error):
                 if let err = error {
-                    os_log("Check completed with %s", err.localizedDescription)
+                    self.traceCollector.addDebug(log: "Check completed with \(err.localizedDescription)")
                 }
                 self.cleanUp()
                 completion(error)
             case .data(_):
                 //ignore, check method is not fetching for data
-                os_log("Data received - this method should not be handling data")
+                self.traceCollector.addDebug(log: "Data received - this method should not be handling data")
             }
         }
 
-        os_log("opening %s", url.absoluteString)
+        self.traceCollector.addDebug(log: "opening \(url.absoluteString)")
+        self.traceCollector.addTrace(log: "\nurl: \(url) - \(self.traceCollector.now())")
         //Initiating on the main thread to synch, as all connection update/state events will also be called on main thread
         DispatchQueue.main.async {
             self.startMonitoring()
             self.createTimer()
             self.activateConnection(url: url, completion: self.checkResponseHandler)
         }
-
     }
 
-    /// Sends a request to the DEVICE_IP endpoint, and returns details whether the connection was over cellular or not.
+    func checkWithTrace(url: URL, completion: @escaping (Error?, TraceInfo?) -> Void) {
+        traceCollector.isDebugInfoCollectionEnabled = true
+        traceCollector.isConsoleLogsEnabled = true
+        traceCollector.startTrace()
+        check(url: url) { [weak self] error in
+            completion(error, self?.traceCollector.traceInfo())
+            self?.traceCollector.stopTrace()
+        }
+    }
+
+    /// Sends a request to the tru.ID DEVICE_IP endpoint, and returns details whether the connection was over cellular or not.
     /// Unlike `check(...)` method, this method uses system's default network implementation via URLSession.
     func isReachable(completion: @escaping (ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
         let url = URL(string: apiHelper.DEVICE_IP_URL)!
@@ -112,28 +124,29 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             case .follow(let url):
                 redirectCount+=1
                 if redirectCount <= self.MAX_REDIRECTS {
-                    os_log("Redirect found: %s", url.absoluteString)
+                    self.traceCollector.addDebug(log: "Redirect found: \(url.absoluteString)")
                     self.createTimer()
                     self.activateConnectionForDataFetch(url: url, completion: self.checkResponseHandler)
                 } else {
-                    os_log("MAX Redirects reached %s", String(self.MAX_REDIRECTS))
+                    self.traceCollector.addDebug(log: "MAX Redirects reached \(String(self.MAX_REDIRECTS))")
                     self.fireTimer()
                 }
             case .complete(let error):
                 if let err = error {
-                    os_log("Check completed with %s", err.localizedDescription)
+                    self.traceCollector.addDebug(log: "Check completed with \(err.localizedDescription)")
                 }
                 self.cleanUp()
                 completion(nil)
             case .data(let data):
-                os_log("Data received")
+
+                self.traceCollector.addDebug(log: "Data received")
                 self.cleanUp()
                 completion(data)
             }
 
         }
 
-        os_log("opening %s", url.absoluteString)
+        self.traceCollector.addDebug(log: "opening \(url.absoluteString)")
         //Initiating on the main thread to synch, as all connection update/state events will also be called on main thread
         DispatchQueue.main.async {
             self.startMonitoring()
@@ -175,9 +188,10 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             return
         }
 
-        os_log("sending data:\n%s", command)
 
-        connection = createConnection(scheme: scheme, host: host)
+        self.traceCollector.addDebug(log: "sending data:\n\(command)")
+        self.traceCollector.addTrace(log: "\ncommand:\n\(self.traceCollector.now())")
+        connection = createConnection(scheme: scheme, host: host, port: url.port)
         if let connection = connection {
             connection.stateUpdateHandler = createConnectionUpdateHandler(completion: completion, readyStateHandler: { [weak self] in
                 self?.sendAndReceive(requestUrl: url, data: data, completion: completion)
@@ -185,7 +199,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             // All connection events will be delivered on the main thread.
             connection.start(queue: .main)
         } else {
-            os_log("Problem creating a connection ", url.absoluteString)
+            self.traceCollector.addDebug(log: "Problem creating a connection \(url.absoluteString)")
             completion(.complete(NetworkError.connectionCantBeCreated("Problem creating a connection \(url.absoluteString)")))
         }
     }
@@ -194,21 +208,22 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return { [weak self] (newState) in
             switch (newState) {
             case .setup:
-                os_log("Connection State: Setup\n")
+                self?.traceCollector.addDebug(log: "Connection State: Setup\n")
             case .preparing:
-                os_log("Connection State: Preparing\n")
+                self?.traceCollector.addDebug(log: "Connection State: Preparing\n")
             case .ready:
-                os_log("Connection State: Ready %s\n", self?.connection.debugDescription ?? "No connection details")
+                let msg = self?.connection.debugDescription ?? "No connection details"
+                self?.traceCollector.addDebug(log: "Connection State: Ready \(msg)\n")
                 readyStateHandler() //Send and Receive
             case .waiting(let error):
-                os_log("Connection State: Waiting %s \n", error.localizedDescription)
+                self?.traceCollector.addDebug(log: "Connection State: Waiting \(error.localizedDescription) \n")
             case .cancelled:
-                os_log("Connection State: Cancelled\n")
+                self?.traceCollector.addDebug(log: "Connection State: Cancelled\n")
             case .failed(let error):
-                os_log("Connection State: Failed ->%s", type:.error, error.localizedDescription)
+                self?.traceCollector.addDebug(type:.error, log:"Connection State: Failed ->\(error.localizedDescription)")
                 completion(.complete(error))
             @unknown default:
-                os_log("Connection ERROR State not defined\n")
+                self?.traceCollector.addDebug(log: "Connection ERROR State not defined\n")
                 completion(.complete(NetworkError.other("Connection State: Unknown \(newState)")))
             }
         }
@@ -227,21 +242,18 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
 
         cmd += String(format:" HTTP/1.1\r\nHost: %@", host)
-        cmd += "\r\nUser-Agent: tru-sdk-ios/\(truSdkVersion) "
-        #if canImport(UIKit)
-        cmd += UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
-        #elseif os(macOS)
-        cmd += "macOS / Unknown"
-        #endif
+        cmd += "\r\nUser-Agent: \(userAgent(sdkVersion: TruSdkVersion)) "
         cmd += "\r\nAccept: */*"
         cmd += "\r\nConnection: close\r\n\r\n"
 
         return cmd
     }
 
-    func createConnection(scheme: String, host: String) -> NWConnection? {
-        if scheme.isEmpty || host.isEmpty ||
-            !(scheme.hasPrefix("http") || scheme.hasPrefix("https")) {
+    func createConnection(scheme: String, host: String, port: Int? = nil) -> NWConnection? {
+        if scheme.isEmpty ||
+            host.isEmpty ||
+            !(scheme.hasPrefix("http") ||
+                scheme.hasPrefix("https")) {
             return nil
         }
 
@@ -250,23 +262,24 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         tcpOptions.enableKeepalive = false
 
         var tlsOptions: NWProtocolTLS.Options?
-        var port = NWEndpoint.Port.http
+        var fport = (port != nil ? NWEndpoint.Port(integerLiteral: NWEndpoint.Port.IntegerLiteralType(port!)) : NWEndpoint.Port.http)
 
         if (scheme.starts(with:"https")) {
-            port = NWEndpoint.Port.https
+            fport = (port != nil ? NWEndpoint.Port(integerLiteral: NWEndpoint.Port.IntegerLiteralType(port!)) : NWEndpoint.Port.https)
             tlsOptions = .init()
             tcpOptions.enableFastOpen = true //Save on tcp round trip by using first tls packet
         }
 
-        os_log("connection scheme %s %s", scheme, String(port.rawValue))
-        let params = NWParameters(tls: tlsOptions , tcp: tcpOptions)
+        self.traceCollector.addTrace(log: "Start connection \(host) \(fport.rawValue) \(scheme) \(self.traceCollector.now())\n")
+        self.traceCollector.addDebug(log: "connection scheme \(scheme) \(String(fport.rawValue))")
+        let params = NWParameters(tls: tlsOptions , tcp: tcpOptions)        
         params.serviceClass = .responsiveData
         // force network connection to cellular only
         params.requiredInterfaceType = .cellular
         params.prohibitExpensivePaths = false
         params.prohibitedInterfaceTypes = [.wifi]
 
-        connection = NWConnection(host: NWEndpoint.Host(host), port: port, using: params)
+        connection = NWConnection(host: NWEndpoint.Host(host), port: fport, using: params)
 
         return connection
     }
@@ -306,11 +319,13 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     func createTimer() {
 
         if let timer = self.timer, timer.isValid {
-            os_log("Invalidating the existing timer", type: .debug)
+
+            self.traceCollector.addDebug(log: "Invalidating the existing timer")
             timer.invalidate()
         }
 
-        os_log("Starting a new timer", type: .debug)
+
+        self.traceCollector.addDebug(log: "Starting a new timer")
         self.timer = Timer.scheduledTimer(timeInterval: self.CONNECTION_TIME_OUT,
                                           target: self,
                                           selector: #selector(self.fireTimer),
@@ -319,7 +334,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     @objc func fireTimer() {
-        os_log("Connection time out.", type: .debug)
+
+        self.traceCollector.addDebug(log: "Connection time out.")
         timer?.invalidate()
         checkResponseHandler(.complete(NetworkError.other("Connection cancelled - either due to time out, or MAC Redirect reached")))
     }
@@ -334,17 +350,23 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             for interfaceType in interfaceTypes {
                 switch interfaceType {
                 case .wifi:
-                    os_log("Path is Wi-Fi")
+                    self.traceCollector.addDebug(log: "Path is Wi-Fi")
+
                 case .cellular:
-                    os_log("Path is Cellular ipv4 %s ipv6 %s", path.supportsIPv4.description, path.supportsIPv6.description)
+                    self.traceCollector.addDebug(log: "Path is Cellular ipv4 \(path.supportsIPv4.description) ipv6 \(path.supportsIPv6.description)")
+
                 case .wiredEthernet:
-                    os_log("Path is Wired Ethernet")
+                    self.traceCollector.addDebug(log: "Path is Wired Ethernet")
+
                 case .loopback:
-                    os_log("Path is Loopback")
+                    self.traceCollector.addDebug(log: "Path is Loopback")
+
                 case .other:
-                    os_log("Path is other")
+                    self.traceCollector.addDebug(log: "Path is other")
+
                 default:
-                    os_log("Path is unknown")
+                    self.traceCollector.addDebug(log: "Path is unknown")
+
                 }
             }
         }
@@ -360,7 +382,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     func cleanUp() {
-        os_log("Performing clean-up.")
+        self.traceCollector.addDebug(log: "Performing clean-up.")
+
         self.timer?.invalidate()
         self.stopMonitoring()
         self.cancelExistingConnection()
@@ -369,7 +392,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
-                os_log("Sending error %s", type: .error, err.localizedDescription)
+                self.traceCollector.addDebug(type: .error, log: "Sending error \(err.localizedDescription)")
+                self.traceCollector.addTrace(log:"send: error \(err.localizedDescription) - \(self.traceCollector.now())")
                 completion(.complete(err))
 
             }
@@ -378,18 +402,24 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         // only reading the first 4Kb to retreive the Status & Location headers, not interested in the body
         connection?.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, context, isComplete, error in
 
-            os_log("Receive isComplete: %s", isComplete.description)
+            self.traceCollector.addDebug(log: "Receive isComplete: \(isComplete.description)")
+
+            self.traceCollector.addTrace(log:"\nreceive: complete \(String(describing: isComplete.description)) - \(self.traceCollector.now())")
             if let err = error {
+                self.traceCollector.addTrace(log:"receive: error \(err.localizedDescription) - \(self.traceCollector.now())")
                 completion(.complete(err))
                 return
             }
 
             if let d = data, !d.isEmpty, let response = self.decodeResponse(data: d) {
 
-                os_log("Response:\n %s", response)
+                self.traceCollector.addDebug(log: "Response:\n \(response)")
+                self.traceCollector.addTrace(log:"\nresponse:\n\(String(describing: response))")
 
                 let status = self.httpStatusCode(response: response)
-                os_log("\n----\nHTTP status: %s", String(status))
+                self.traceCollector.addDebug(log: "\n----\nHTTP status: \(String(status))")
+
+                self.traceCollector.addTrace(log:"receive: status \(status) - \(self.traceCollector.now())")
 
                 switch status {
                 case 301...303, 307...308:
@@ -408,6 +438,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                     completion(.complete(NetworkError.other("HTTP Status can't be parsed \(status)")))
                 }
             } else {
+
+                self.traceCollector.addTrace(log:"receive: no data - \(self.traceCollector.now())")
                 completion(.complete(NetworkError.noData("Response has no data or corrupt")))
             }
         }
@@ -429,9 +461,9 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             return
         }
 
-        os_log("sending data:\n%s", command)
+        self.traceCollector.addDebug(log: "sending data:\n\(command)")
 
-        connection = createConnection(scheme: scheme, host: host)
+        connection = createConnection(scheme: scheme, host: host, port: url.port)
         if let connection = connection {
             connection.stateUpdateHandler = createConnectionUpdateHandler(completion: completion, readyStateHandler: { [weak self] in
                 self?.sendAndReceiveDictionary(requestUrl: url, data: data, completion: completion)
@@ -439,7 +471,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             // All connection events will be delivered on the main thread.
             connection.start(queue: .main)
         } else {
-            os_log("Problem creating a connection ", url.absoluteString)
+
+            self.traceCollector.addDebug(log: "Problem creating a connection \(url.absoluteString)")
             completion(.complete(NetworkError.connectionCantBeCreated("Problem creating a connection \(url.absoluteString)")))
         }
     }
@@ -448,7 +481,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     func sendAndReceiveDictionary(requestUrl: URL, data: Data,  completion: @escaping ResultHandler) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
-                os_log("Sending error %s", type: .error, err.localizedDescription)
+
+                self.traceCollector.addDebug(type: .error, log: "Sending error \(err.localizedDescription)" )
                 completion(.complete(err))
 
             }
@@ -457,7 +491,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         //Read the entire response body if HTTP Status Code == 200
         connection?.receiveMessage { data, context, isComplete, error in
 
-            os_log("Receive isComplete: %s", isComplete.description)
+
+            self.traceCollector.addDebug(log: "Receive isComplete: \(isComplete.description)")
             if let err = error {
                 completion(.complete(err))
                 return
@@ -465,10 +500,12 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
             if let d = data, !d.isEmpty, let response = self.decodeResponse(data: d) {
 
-                os_log("Response:\n %s", response)
+
+                self.traceCollector.addDebug(log: "Response:\n \(response)")
 
                 let status = self.httpStatusCode(response: response)
-                os_log("\n----\nHTTP status: %s", String(status))
+
+                self.traceCollector.addDebug(log: "\n----\nHTTP status: \(String(status))")
 
                 switch status {
                 case 301...303, 307...308:
@@ -514,11 +551,11 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                             // load JSON response into a dictionary
                             dict = try JSONSerialization.jsonObject(with: data, options: .mutableContainers) as? [String : Any]
                             if let dict = dict {
-                                os_log("Dictionary: %s", dict.description)
+                                self.traceCollector.addDebug(log: "Dictionary: \(dict.description)")
                             }
                         } catch {
                             let msg = error.localizedDescription
-                            os_log("JSON serialisation error: %s", type:.error, msg)
+                            self.traceCollector.addDebug(type:.error, log: "JSON serialisation error: \(msg)")
                         }
                         return dict
                     }
@@ -530,7 +567,6 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
 
-
     // MARK: - Soon to be deprecated
     func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void) {
 
@@ -539,7 +575,9 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             return
         }
 
-        os_log("opening %s", url.absoluteString)
+        self.traceCollector.addDebug(log: "opening \(url.absoluteString)" )
+
+        self.traceCollector.addTrace(log:"\nurl: \(url) - \(self.traceCollector.now())")
         startMonitoring()
         startConnection(scheme: scheme, host: host)
 
@@ -549,7 +587,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             return
         }
 
-        os_log("sending data:\n%s", command)
+        self.traceCollector.addDebug(log: "sending data:\n\(command)")
+        self.traceCollector.addTrace(log:"\ncommand:\n\(String(describing: command))")
 
         let responseHandler: ResultHandler = { [weak self] (result) -> Void in
 
@@ -563,13 +602,14 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
             switch result {
             case .follow(let url):
-                os_log("redirect found: %s", url.absoluteString)
+                self.traceCollector.addDebug(log: "redirect found: \(url.absoluteString)")
                 self.openCheckUrl(url: url, completion: completion)
             case .complete(let error):
-                os_log("openCheckUrl is done")
+                self.traceCollector.addDebug(log: "openCheckUrl is done")
+                self.traceCollector.addTrace(log:"\nComplete")
                 completion(nil, error)
             case .data(_):
-                os_log("data received")
+                self.traceCollector.addDebug(log: "data received")
             }
 
         }
@@ -585,19 +625,20 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         connection?.stateUpdateHandler = { [weak self] (newState) in
             switch (newState) {
             case .ready:
-                os_log("Connection State: Ready %s\n", self?.connection.debugDescription ?? "No connection details")
+                let msg = self?.connection.debugDescription ?? "No connection details"
+                self?.traceCollector.addDebug(log: "Connection State: Ready \(msg)\n")
             case .setup:
-                os_log("Connection State: Setup\n")
+                self?.traceCollector.addDebug(log: "Connection State: Setup\n")
             case .cancelled:
-                os_log("Connection State: Cancelled\n")
+                self?.traceCollector.addDebug(log: "Connection State: Cancelled\n")
             case .preparing:
-                os_log("Connection State: Preparing\n")
+                self?.traceCollector.addDebug(log: "Connection State: Preparing\n")
                 self?.createTimer()
             case .failed(let error):
-                os_log("Connection State: Failed ->%s", type:.error, error.localizedDescription)
+                self?.traceCollector.addDebug(type:.error, log: "Connection State: Failed ->\(error.localizedDescription)" )
                 self?.connection?.cancel()
             default:
-                os_log("Connection ERROR State not defined\n")
+                self?.traceCollector.addDebug(log: "Connection ERROR State not defined\n")
                 self?.connection?.cancel()
                 break
             }
@@ -622,6 +663,7 @@ protocol InternalAPI {
 // MARK: - Internal API
 protocol ConnectionManager {
     func check(url: URL, completion: @escaping (Error?) -> Void)
+    func checkWithTrace(url: URL, completion: @escaping (Error?, TraceInfo?) -> Void)
     func isReachable(completion: @escaping (ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) -> Void)
 
     //The following methods are deprecated

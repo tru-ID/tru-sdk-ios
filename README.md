@@ -25,18 +25,26 @@ let package = Package(
 
 ```swift
 import TruSDK
+
 let tru: TruSDK = TruSDK()
-tru.openCheckUrl(url: url, completion: completion)
+
+tru.check(url: url, completion: completion)
+
+tru.checkWithTrace(url: url) { error, trace in
+...
+}
+
 tru.isReachable { result in
 ...
 }
 ```
 
 ## Release History
+* 0.2.1
+   * Introducing a new API checkWithTrace(...), performs a check given a Tru.Id URL and provides trace information.
 * 0.2.0
    * Introducing a new API isReachable(...), which provides information as to whether the network call was made over cellular,
    and if so the details about the mobile carrier.
-   
 * 0.1.1
     * Safeguarding against correct response data
     * Initiating the request send/receive with Network state = Ready
