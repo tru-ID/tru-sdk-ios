@@ -7,7 +7,7 @@ import Network
 import os
 
 typealias ResultHandler = (ConnectionResult<URL, [String : Any], Error>) -> Void
-let TruSdkVersion = "0.2.1"
+let TruSdkVersion = "0.2.2"
 //
 // Force connectivity to cellular only
 // Open the "check url" and follows all redirects
