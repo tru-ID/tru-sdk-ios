@@ -5,7 +5,11 @@
 //  Created by Murat Yakici on 02/06/2021.
 //
 
+#if canImport(UIKit)
+import UIKit
+#else
 import Foundation
+#endif
 
 final class APIHelper {
 

@@ -40,6 +40,8 @@ tru.isReachable { result in
 ```
 
 ## Release History
+* 0.2.2
+   * Bug fix on iOS target
 * 0.2.1
    * Introducing a new API checkWithTrace(...), performs a check given a Tru.Id URL and provides trace information.
 * 0.2.0
