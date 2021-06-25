@@ -334,10 +334,9 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     @objc func fireTimer() {
-
         self.traceCollector.addDebug(log: "Connection time out.")
         timer?.invalidate()
-        checkResponseHandler(.complete(NetworkError.other("Connection cancelled - either due to time out, or MAC Redirect reached")))
+        checkResponseHandler(.complete(NetworkError.other("Connection cancelled - either due to time out, or MAX Redirect reached")))
     }
 
     func startMonitoring() {

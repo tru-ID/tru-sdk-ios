@@ -113,5 +113,5 @@ func deviceInfo() -> String {
     model = UIDevice.current.model //The model of the device.
     #endif
 
-    return "DeviceInfo: \(manufacturer), \(model) ,\(osName), \(osVersion), \n User-Agent: \(userAgent(sdkVersion: TruSdkVersion))\n"
+    return "DeviceInfo: \(manufacturer), \(model), \(osName), \(osVersion), \n User-Agent: \(userAgent(sdkVersion: TruSdkVersion))\n"
 }

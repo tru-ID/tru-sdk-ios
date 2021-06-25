@@ -40,6 +40,8 @@ tru.isReachable { result in
 ```
 
 ## Release History
+* 0.2.4
+* Bug fix for decoding Reachability details
 * 0.2.3
    * Bug fix checkWithTrace(...) public interface
 * 0.2.2
@@ -82,14 +84,6 @@ tru.isReachable { result in
 * 0.0.1
     * Work in progress    
   
-
-
-
-
-
-
-
-
 
 
 
