@@ -2,6 +2,11 @@
 
 Change Log
 ==========
+## Version 0.2.4
+_2021-06-25_
+
+   * Bug fix for decoding Reachability details
+   
 ## Version 0.2.3
 _2021-06-22_
 

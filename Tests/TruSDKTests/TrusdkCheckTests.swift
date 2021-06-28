@@ -131,7 +131,7 @@ extension TrusdkCheckTests {
         let mock = MockStateHandlingConnectionManager(playList: playList)
         let sdk = TruSDK(connectionManager: mock)
 
-        let expectedError = NetworkError.other("Connection cancelled - either due to time out, or MAC Redirect reached")
+        let expectedError = NetworkError.other("Connection cancelled - either due to time out, or MAX Redirect reached")
         let expectation = self.expectation(description: "11 Redirects")
         let url = URL(string: "http://tru.id")!
 

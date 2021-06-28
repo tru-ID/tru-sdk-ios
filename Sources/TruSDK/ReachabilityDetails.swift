@@ -13,14 +13,20 @@ public struct ReachabilityDetails: Codable, Equatable {
     let networkId: String
     let networkName: String
     let products: [Product]?
-    let link: String
+    //let link: String
+
+    private enum CodingKeys : String, CodingKey {
+        case countryCode = "country_code", networkId = "network_id", networkName = "network_name"
+        case products
+        //case links = "_links"
+    }
 
     public static func == (lhs: ReachabilityDetails, rhs: ReachabilityDetails) -> Bool {
         return lhs.countryCode == rhs.countryCode &&
-            lhs.link == rhs.link &&
             lhs.networkId == rhs.networkId &&
             lhs.networkName == lhs.networkName &&
             lhs.products == rhs.products
+            // && lhs.link == rhs.link
     }
 
 }
@@ -29,6 +35,10 @@ public struct ReachabilityDetails: Codable, Equatable {
 public struct Product: Codable, Equatable {
     let productId: String
     let productType: ProductType
+
+    private enum CodingKeys : String, CodingKey {
+        case productId = "product_id", productType = "product_name"
+    }
 }
 
 /// The TruID product types available for the application developer on the celluar network the app is connected to.
