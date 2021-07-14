@@ -2,14 +2,22 @@
 
 Change Log
 ==========
+## Version 0.2.5
+_2021-07-14_
+
+**Changes**
+ * Bug fix for SDK version number and provide a method to serialise ReachabilityDetails to json string
+
 ## Version 0.2.4
 _2021-06-25_
 
+**Changes**
    * Bug fix for decoding Reachability details
    
 ## Version 0.2.3
 _2021-06-22_
 
+  **Changes**
    * Bug fix checkWithTrace(...) public interface
    * Bug fix on iOS target
    **New**

@@ -9,10 +9,10 @@ import Foundation
 
 /// A struct to hold the details of the Cellular network a request is made.
 public struct ReachabilityDetails: Codable, Equatable {
-    let countryCode: String
-    let networkId: String
-    let networkName: String
-    let products: [Product]?
+    public let countryCode: String
+    public let networkId: String
+    public let networkName: String
+    public let products: [Product]?
     //let link: String
 
     private enum CodingKeys : String, CodingKey {
@@ -33,8 +33,8 @@ public struct ReachabilityDetails: Codable, Equatable {
 
 /// The TruID products available for the application developer on the celluar network the app is connected to.
 public struct Product: Codable, Equatable {
-    let productId: String
-    let productType: ProductType
+    public let productId: String
+    public let productType: ProductType
 
     private enum CodingKeys : String, CodingKey {
         case productId = "product_id", productType = "product_name"
@@ -51,8 +51,8 @@ public enum ProductType:String, Codable {
 /// A struct to hold the details of the error when `isReachable(...) request is made.
 /// If the request was not made on a Cellular network, this struct will represent the details of the error.
 public struct ReachabilityError: Error, Codable, Equatable {
-    let type: String
-    let title: String
-    let status: Int
-    let detail: String
+    public let type: String
+    public let title: String
+    public let status: Int
+    public let detail: String
 }
