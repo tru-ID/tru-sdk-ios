@@ -40,8 +40,10 @@ tru.isReachable { result in
 ```
 
 ## Release History
+* 0.2.5
+   * Bug fix for SDK version number and provide a method to serialise ReachabilityDetails to json string
 * 0.2.4
-* Bug fix for decoding Reachability details
+   * Bug fix for decoding Reachability details
 * 0.2.3
    * Bug fix checkWithTrace(...) public interface
 * 0.2.2

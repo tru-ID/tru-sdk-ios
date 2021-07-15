@@ -15,7 +15,7 @@ final class TrusdkDeviceIPTests: XCTestCase {
         ("testDeviceIP_Given_NoErrors_isReachable_ShouldReturn_Details", testDeviceIP_Given_NoErrors_isReachable_ShouldReturn_Details),
     ]
 
-    var reachabilityDetails = ReachabilityDetails(countryCode: "GB", networkId: "2334", networkName: "EE", products: [Product(productId: "SIM777", productType: .SIMCheck)], link: "https://self.com")
+    var reachabilityDetails = ReachabilityDetails(countryCode: "GB", networkId: "2334", networkName: "EE", products: [Product(productId: "SIM777", productType: .SIMCheck)])
 
     var reachabilityError = ReachabilityError(type: "HTTP", title: "Redirect", status: 302, detail: "Some description")
 
