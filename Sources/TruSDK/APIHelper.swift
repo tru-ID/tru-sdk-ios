@@ -26,7 +26,9 @@ final class APIHelper {
         let configuration = URLSessionConfiguration.ephemeral //We do not want OS to cache or persist
         configuration.allowsCellularAccess = true
         configuration.waitsForConnectivity = true
-        configuration.allowsExpensiveNetworkAccess = true        
+        if #available(iOS 13.0, *) {
+            configuration.allowsExpensiveNetworkAccess = true
+        }
         configuration.networkServiceType = .responsiveData
 
         return URLSession(configuration: configuration)
@@ -57,7 +59,14 @@ final class APIHelper {
                    let dataModel = try? JSONDecoder().decode(U.self, from: data) {
                     onCompletion(.data(dataModel))
                 } else if (300...399).contains(httpResponse.statusCode){
-                    let redirectURL = httpResponse.value(forHTTPHeaderField: "Location")
+                    var redirectURL: String?
+                    let headerFieldKey = "Location"
+                    if #available(iOS 13.0, *) {
+                        redirectURL = httpResponse.value(forHTTPHeaderField: headerFieldKey)
+                    } else {
+                        // Fallback on earlier versions
+                        redirectURL = httpResponse.allHeaderFields[headerFieldKey] as? String
+                    }
                     onCompletion(.follow(URL(string: redirectURL ?? "https://unknown-redirect-url")!))
                 } else {
                     if let dataModel = try? JSONDecoder().decode(ReachabilityError.self, from: data) {
