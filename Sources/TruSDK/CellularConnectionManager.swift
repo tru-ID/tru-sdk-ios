@@ -7,14 +7,14 @@ import Network
 import os
 
 typealias ResultHandler = (ConnectionResult<URL, [String : Any], Error>) -> Void
-let TruSdkVersion = "0.2.5"
+let TruSdkVersion = "0.2.6"
 //
 // Force connectivity to cellular only
 // Open the "check url" and follows all redirects
 // CellularConnectionManager might switch from tls to non-tls between redirects
 //
 @available(macOS 10.14, *)
-@available(iOS 13.0, *)
+@available(iOS 12.0, *)
 class CellularConnectionManager: ConnectionManager, InternalAPI {
 
     var connection: NWConnection?

@@ -2,6 +2,11 @@
 
 Change Log
 ==========
+## Version 0.2.6
+_2021-08-06_
+
+**Changes**
+* Lower min iOS version to 12
 ## Version 0.2.5
 _2021-07-14_
 

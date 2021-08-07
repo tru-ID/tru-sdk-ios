@@ -1,6 +1,6 @@
 import Foundation
 @available(macOS 10.15, *)
-@available(iOS 13.0, *)
+@available(iOS 12.0, *)
 open class TruSDK {
     
     private let connectionManager: ConnectionManager;

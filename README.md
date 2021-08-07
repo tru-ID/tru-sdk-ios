@@ -28,7 +28,9 @@ import TruSDK
 
 let tru: TruSDK = TruSDK()
 
-tru.check(url: url, completion: completion)
+tru.check(url: url) { error in 
+...
+}
 
 tru.checkWithTrace(url: url) { error, trace in
 ...
@@ -38,55 +40,6 @@ tru.isReachable { result in
 ...
 }
 ```
-
-## Release History
-* 0.2.5
-   * Bug fix for SDK version number and provide a method to serialise ReachabilityDetails to json string
-* 0.2.4
-   * Bug fix for decoding Reachability details
-* 0.2.3
-   * Bug fix checkWithTrace(...) public interface
-* 0.2.2
-   * Bug fix on iOS target
-* 0.2.1
-   * Introducing a new API checkWithTrace(...), performs a check given a Tru.Id URL and provides trace information.
-* 0.2.0
-   * Introducing a new API isReachable(...), which provides information as to whether the network call was made over cellular,
-   and if so the details about the mobile carrier.
-* 0.1.1
-    * Safeguarding against correct response data
-    * Initiating the request send/receive with Network state = Ready
-    * Additional method signature refactoring
-* 0.1.0
-    * Now min target is iOS13 and macOS 10.14
-    * Additional code improvements
-* 0.0.12
-    * 303 See Other support
-* 0.0.11
-    * Helper method to fetch a JSON from a GET method over a cellular connection    
-* 0.0.10
-    * receive instead of receiveMessage
-    * Custom User-Agent tru-sdk-ios/{version}
-* 0.0.9
-    * openCheckUrl completion changed 
-* 0.0.8
-    * 307 Temporary Redirect support
-* 0.0.7
-    * Removing Port  
-* 0.0.6
-    * Logging
-* 0.0.5
-    * Cleanup
-* 0.0.4
-    * Naming
-* 0.0.3
-    * Refactoring       
-* 0.0.2
-    * RedirectManager openCheckUrl completion support
-* 0.0.1
-    * Work in progress    
-  
-
 
 
 ## Meta
