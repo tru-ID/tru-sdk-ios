@@ -34,17 +34,16 @@ open class TruSDK {
     /// - Parameters:
     ///   - completion: closure to report check result. Note that, this closure will be called on the Main Thread.
     public func isReachable(completion: @escaping (Result<ReachabilityDetails?, ReachabilityError>) -> Void) {
-        connectionManager.isReachable { connectionResult in
+        connectionManager.isReachable() { connectionResult in
             switch connectionResult {
-            case .complete(let reachabilityError): do {
+            case .failure(let reachabilityError): do {
                 if let error = reachabilityError {
                     completion(.failure(error))
                 } else {
                     completion(.failure(ReachabilityError(type: "Unknown", title: "No Error type", status: -1, detail: "Received an error with no known type")))
                 }
             }
-            case .data(let reachabilityDetails): completion(.success(reachabilityDetails))
-            case .follow(_): completion(.failure(ReachabilityError(type: "HTTP", title: "Redirect", status: 302, detail: "Unexpected Redirect found!")))
+            case .success(let reachabilityDetails): completion(.success(reachabilityDetails))
             }
         }
     }

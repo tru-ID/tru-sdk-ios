@@ -10,18 +10,30 @@ import Network
 
 @testable import TruSDK
 
+private var debugInfo = DebugInfo()
+
 func httpCommand(url: URL, sdkVersion: String) -> String {
     var query = ""
     if let q = url.query {
         query = "?\(q)"
     }
+
+    var system = ""
+    #if canImport(UIKit)
+    system = UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
+    #elseif os(macOS)
+    system = "macOS / Unknown"
+    #endif
+
     let expectation = """
     GET \(url.path)\(query) HTTP/1.1\
     \r\nHost: \(url.host!)\
-    \r\nUser-Agent: \(userAgent(sdkVersion: sdkVersion)) \
+    \r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: sdkVersion)) \
+    \(system)\
     \r\nAccept: */*\
     \r\nConnection: close\r\n\r\n
     """
+
     return expectation
 }
 
@@ -132,12 +144,12 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
     typealias CompletionHandler = (Any?, Error?) -> Void
 
     // For testing multiple redirects
-    private var playList: [ConnectionResult<URL, [String : Any], Error>]
+    private var playList: [ConnectionResult2<URL, Data, Error>]
     // This would help us simulate connection state changes
     var connectionStateHandlerPlaylist: [NWConnection.State] = [.setup, .preparing, .ready]
     var stateUpdateHandler: ((NWConnection.State) -> Void)!
 
-    init(playList: [ConnectionResult<URL, [String : Any], Error>]) {
+    init(playList: [ConnectionResult2<URL, Data, Error>]) {
         self.playList = playList
     }
 
@@ -199,7 +211,7 @@ class MockConnectionManager: CellularConnectionManager {
     typealias CompletionHandler = (Any?, Error?) -> Void
 
     // For testing multiple redirects
-    private var playList: [ConnectionResult<URL, [String : Any], Error>]
+    private var playList: [ConnectionResult2<URL, Data, Error>]
     // This would help us simulate connection state changes
     var connectionStateHandlerPlaylist: [NWConnection.State] = [.setup, .preparing, .ready]
 
@@ -214,7 +226,7 @@ class MockConnectionManager: CellularConnectionManager {
     var isActivateConnectionCalled: Bool = false
 
 
-    init(playList: [ConnectionResult<URL, [String : Any], Error>], shouldFailCreatingHttpCommand: Bool = false) {
+    init(playList: [ConnectionResult2<URL, Data, Error>], shouldFailCreatingHttpCommand: Bool = false) {
         self.playList = playList
         self.shouldFailCreatingHttpCommand = shouldFailCreatingHttpCommand
     }
@@ -230,7 +242,7 @@ class MockConnectionManager: CellularConnectionManager {
         let mockCommand = createHttpCommand(url: url)
         let mockData = mockCommand?.data(using: .utf8)
         guard let data = mockData else {
-            completion(.complete(NetworkError.other("")))
+            completion(.err(NetworkError.other("")))
             return
         }
         let stateUpdateHandler = createConnectionUpdateHandler(completion: completion) {
@@ -258,11 +270,12 @@ class MockConnectionManager: CellularConnectionManager {
         super.openCheckUrl(url: url, completion: completion)
     }
 
-    override func startConnection(scheme: String, host: String) {
+    override func createConnection(scheme: String, host: String, port: Int? = nil) -> NWConnection? {
         // As with the current implementation this won't trigger anything?
         // We can check is this is called or not
         self.isStartConnectionCalled = true
         self.connectionLifecycle.append("startConnection")
+        return nil
     }
 
     override func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {

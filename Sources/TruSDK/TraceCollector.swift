@@ -5,7 +5,11 @@
 //  Created by Murat Yakici on 14/06/2021.
 //
 
+#if canImport(UIKit)
+import UIKit
+#else
 import Foundation
+#endif
 import os
 
 /// Collects trace and debugging information for each 'check' session.
@@ -31,8 +35,8 @@ final class TraceCollector {
                 trace.removeAll()
                 debugInfo.clear()
                 //
-                trace.append("\(deviceInfo())\n")
-                debugInfo.add(log:"\(deviceInfo())\n")
+                trace.append("\(debugInfo.deviceString())\n")
+                debugInfo.add(log:"\(debugInfo.deviceString())\n")
             } else {
                 os_log("%s", type:.error, "Trace already started. Use stopTrace before restaring..")
             }
@@ -108,6 +112,20 @@ public class DebugInfo {
             stringBuffer += "\(key): \(value)"
         }
         return stringBuffer
+    }
+    
+    public func userAgent(sdkVersion: String) -> String {
+        return "tru-sdk-ios/\(sdkVersion))"
+    }
+
+    public func deviceString() -> String {
+        var device: String = ""
+        #if canImport(UIKit)
+        device = UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
+        #elseif os(macOS)
+        device = "macOS / Unknown"
+        #endif
+        return device
     }
 }
 

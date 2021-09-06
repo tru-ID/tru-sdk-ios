@@ -52,8 +52,8 @@ extension TrusdkCheckTests {
 
     func testCheck_ShouldComplete_WithoutErrors() {
         //results will be processes from last to first
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let playList: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "https://www.tru.id")!)
         ]
 
@@ -78,8 +78,8 @@ extension TrusdkCheckTests {
     }
 
     func testCheck_Given3Redirects_ShouldComplete_WithoutError() {
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let playList: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "https://www.tru.id/uk")!),
             .follow(URL(string: "https://www.tru.id")!),
             .follow(URL(string: "https://tru.id")!)
@@ -112,8 +112,8 @@ extension TrusdkCheckTests {
     }
 
     func testCheck_GivenExceedingMAXRedirects_ShouldComplete_WithError() {
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let playList: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "https://www.tru.id/12")!),
             .follow(URL(string: "https://www.tru.id/11")!),
             .follow(URL(string: "https://www.tru.id/10")!), //MAX Redirects is 10
@@ -145,8 +145,8 @@ extension TrusdkCheckTests {
 
     func testCheck_Given3Redirects_WithRelativePath_ShouldComplete_WithError() {
 
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let playList: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "/uk")!), //This shouldn't happen, we are covering this in parseRedirect test
             .follow(URL(string: "https://tru.id")!),
             .follow(URL(string: "https://www.tru.id")!)
@@ -168,7 +168,7 @@ extension TrusdkCheckTests {
 
     func testCheck_GivenNoSchemeOrHost_ShouldComplete_WithError() {
 
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = []
+        let playList: [ConnectionResult2<URL, Data, Error>] = []
 
         let mock = MockConnectionManager(playList: playList)
         let sdk = TruSDK(connectionManager: mock)
@@ -185,7 +185,7 @@ extension TrusdkCheckTests {
 
     func testCheck_GivenNoHTTPCommand_ShouldComplete_WithError() {
 
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = []
+        let playList: [ConnectionResult2<URL, Data, Error>] = []
 
         let mock = MockConnectionManager(playList: playList, shouldFailCreatingHttpCommand: true)
         let sdk = TruSDK(connectionManager: mock)
@@ -214,8 +214,8 @@ extension TrusdkCheckTests {
 
     func runCheckTestWith(expectedError: NetworkError) {
 
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(expectedError),
+        let playList: [ConnectionResult2<URL, Data, Error>] = [
+            .err(expectedError),
             .follow(URL(string: "https://www.tru.id/uk")!)
         ]
 
@@ -250,8 +250,8 @@ extension TrusdkCheckTests {
 extension TrusdkCheckTests {
 
     func testConnectionStateSeq_GivenSetupPreparingReady_ShouldComplete_WithoutError() {
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let playList: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "https://www.tru.id")!)
         ]
 
@@ -273,8 +273,8 @@ extension TrusdkCheckTests {
     }
 
     func testConnectionStateSeq_GivenSetupPreparingFailed_ShouldComplete_WithError() {
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let playList: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "https://www.tru.id")!)
         ]
 
@@ -298,8 +298,8 @@ extension TrusdkCheckTests {
     }
 
     func testConnectionStateSeq_GivenSetupPreparingCancelled_ShouldComplete_WithError() {
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let playList: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "https://www.tru.id")!)
         ]
 
@@ -321,8 +321,8 @@ extension TrusdkCheckTests {
     }
 
     func testConnectionStateSeq_GivenSetupPreparingWaitingPreparingReady_ShouldComplete_WithoutError() {
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let playList: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "https://www.tru.id")!)
         ]
 
@@ -344,8 +344,8 @@ extension TrusdkCheckTests {
     }
 
     func testConnectionStateSeq_GivenSetupPreparingWaitingPreparingCancelled_ShouldComplete_WithoutError() {
-        let playList: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let playList: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "https://www.tru.id")!)
         ]
 
