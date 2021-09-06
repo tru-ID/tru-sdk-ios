@@ -2,6 +2,12 @@
 
 Change Log
 ==========
+## Version 0.2.7
+_2021-09-06_
+
+**Changes**
+* Bug fix regarding forcing data cellular connectivity in `isReachable` method.
+
 ## Version 0.2.6
 _2021-08-06_
 

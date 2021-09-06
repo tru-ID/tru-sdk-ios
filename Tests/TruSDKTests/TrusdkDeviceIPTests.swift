@@ -18,12 +18,12 @@ final class TrusdkDeviceIPTests: XCTestCase {
     var reachabilityDetails = ReachabilityDetails(countryCode: "GB", networkId: "2334", networkName: "EE", products: [Product(productId: "SIM777", productType: .SIMCheck)])
 
     var reachabilityError = ReachabilityError(type: "HTTP", title: "Redirect", status: 302, detail: "Some description")
+    
 
     lazy var playList: [ConnectionResult<URL, ReachabilityDetails, ReachabilityError>] = {
-        [.data(reachabilityDetails),
-         .complete(reachabilityError),
-         .follow(URL(string: "https://www.tru.id")!),
-         .complete(nil),
+        [
+         .success(reachabilityDetails),
+         .failure(reachabilityError)
         ]
     }()
 
@@ -82,7 +82,7 @@ extension TrusdkDeviceIPTests {
 
 
     func testDeviceIP_Given_ReceivedARedirect_ShouldReturn_Error() {
-        let mock = MockDeviceIPConnectionManager(result: playList[2])
+        let mock = MockDeviceIPConnectionManager(result: playList[1])
         let sdk = TruSDK(connectionManager: mock)
         let expectation = self.expectation(description: "Device IP Request")
 
@@ -101,7 +101,7 @@ extension TrusdkDeviceIPTests {
     }
 
     func testDeviceIP_Given_UnknownProblem_ShouldReturn_Error() {
-        let mock = MockDeviceIPConnectionManager(result: playList[3])
+        let mock = MockDeviceIPConnectionManager(result: playList[1])
         let sdk = TruSDK(connectionManager: mock)
         let expectation = self.expectation(description: "Device IP Request")
 

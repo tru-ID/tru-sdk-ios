@@ -8,7 +8,7 @@
 import XCTest
 @testable import TruSDK
 
-typealias Result = (ConnectionResult<URL, [String : Any], Error>) -> Void
+typealias Result = (ConnectionResult2<URL, Data, Error>) -> Void
 
 final class TrusdkDeprecatedCheckTests: XCTestCase {
 
@@ -41,8 +41,8 @@ extension TrusdkDeprecatedCheckTests {
 
     func testCheck_ShouldComplete_WithoutErrors() {
         //results will be processes from last to first
-        let results: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let results: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "https://www.tru.id")!)
         ]
 
@@ -73,8 +73,8 @@ extension TrusdkDeprecatedCheckTests {
     func testCheck_3Redirects_ShouldComplete_WithoutError() {
         let startURL = URL(string: "http://tru.id")!
 
-        let results: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let results: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "https://www.tru.id/uk")!),
             .follow(URL(string: "https://www.tru.id")!),
             .follow(URL(string: "https://tru.id")!)
@@ -96,8 +96,8 @@ extension TrusdkDeprecatedCheckTests {
 
     func testCheck_3Redirects_WithRelativePath_ShouldComplete_WithError() {
         let startURL = URL(string: "http://tru.id")!
-        let results: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(nil),
+        let results: [ConnectionResult2<URL, Data, Error>] = [
+            .err(nil),
             .follow(URL(string: "/uk")!), //This shouldn't happen, we are covering this in parseRedirect test
             .follow(URL(string: "https://tru.id")!),
             .follow(URL(string: "https://www.tru.id")!)
@@ -115,7 +115,7 @@ extension TrusdkDeprecatedCheckTests {
 
     func testCheck_StartsStopConnectionCalls_ShouldBeInCorrectOrder() {
         let startURL = URL(string: "http://tru.id")!
-        let results: [ConnectionResult<URL, [String : Any], Error>] = [.complete(nil)]
+        let results: [ConnectionResult2<URL, Data, Error>] = [.err(nil)]
 
         let mock = MockConnectionManager(playList: results)
         let sdk = TruSDK(connectionManager: mock)
@@ -130,13 +130,13 @@ extension TrusdkDeprecatedCheckTests {
 
         let callOrder = mock.connectionLifecycle
         XCTAssertEqual(callOrder[0], "startMonitoring")
-        XCTAssertEqual(callOrder[1], "startConnection")
+        XCTAssertEqual(callOrder[1], "activateConnection")
         XCTAssertEqual(callOrder[2], "stopMonitoring")
     }
 
     func testCheck_StartsStopConnectionCalls_ShouldBeInCorrectOrder_AfterRedirect() {
         let startURL = URL(string: "http://tru.id")!
-        let results: [ConnectionResult<URL, [String : Any], Error>] = [.complete(nil),
+        let results: [ConnectionResult2<URL, Data, Error>] = [.err(nil),
                                                               .follow(URL(string: "https://www.tru.id")!)]
 
         let mock = MockConnectionManager(playList: results)
@@ -152,16 +152,14 @@ extension TrusdkDeprecatedCheckTests {
 
         let callOrder = mock.connectionLifecycle
         XCTAssertEqual(callOrder[0], "startMonitoring")
-        XCTAssertEqual(callOrder[1], "startConnection")
-        XCTAssertEqual(callOrder[2], "stopMonitoring")
-        XCTAssertEqual(callOrder[3], "startMonitoring")
-        XCTAssertEqual(callOrder[4], "startConnection")
-        XCTAssertEqual(callOrder[5], "stopMonitoring")
+        XCTAssertEqual(callOrder[1], "activateConnection")
+        XCTAssertEqual(callOrder[2], "activateConnection")
+        XCTAssertEqual(callOrder[3], "stopMonitoring")
     }
 
     func testCheck_WithNoSchemeOrHost_ShouldComplete_WithError() {
         let startURL = URL(string: "/")!
-        let results: [ConnectionResult<URL, [String : Any], Error>] = []
+        let results: [ConnectionResult2<URL, Data, Error>] = []
 
         let mock = MockConnectionManager(playList: results)
         let sdk = TruSDK(connectionManager: mock)
@@ -177,7 +175,7 @@ extension TrusdkDeprecatedCheckTests {
 
     func testCheck_WithNoHTTPCommand_ShouldComplete_WithError() {
         let startURL = URL(string: "http://tru.id")!
-        let results: [ConnectionResult<URL, [String : Any], Error>] = []
+        let results: [ConnectionResult2<URL, Data, Error>] = []
 
         let mock = MockConnectionManager(playList: results, shouldFailCreatingHttpCommand: true)
         let sdk = TruSDK(connectionManager: mock)
@@ -196,8 +194,8 @@ extension TrusdkDeprecatedCheckTests {
     
     func runCheckTestWith(error: NetworkError) {
         let startURL = URL(string: "http://tru.id")!
-        let results: [ConnectionResult<URL, [String : Any], Error>] = [
-            .complete(error),
+        let results: [ConnectionResult2<URL, Data, Error>] = [
+            .err(error),
             .follow(URL(string: "https://www.tru.id/uk")!)
         ]
 
