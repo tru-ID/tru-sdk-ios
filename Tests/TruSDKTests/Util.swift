@@ -144,12 +144,12 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
     typealias CompletionHandler = (Any?, Error?) -> Void
 
     // For testing multiple redirects
-    private var playList: [ConnectionResult2<URL, Data, Error>]
+    private var playList: [ConnectionResult<URL, Data, Error>]
     // This would help us simulate connection state changes
     var connectionStateHandlerPlaylist: [NWConnection.State] = [.setup, .preparing, .ready]
     var stateUpdateHandler: ((NWConnection.State) -> Void)!
 
-    init(playList: [ConnectionResult2<URL, Data, Error>]) {
+    init(playList: [ConnectionResult<URL, Data, Error>]) {
         self.playList = playList
     }
 
@@ -197,12 +197,12 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
 }
 
 class MockDeviceIPConnectionManager: CellularConnectionManager {
-    private var result: ConnectionResult<URL, ReachabilityDetails, ReachabilityError>
-    init(result: ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) {
+    private var result: ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>
+    init(result: ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>) {
         self.result = result
     }
 
-    override func isReachable(completion: @escaping (ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
+    override func isReachable(dataResidency: String?, completion: @escaping (ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
         completion(result)
     }
 }
@@ -211,7 +211,7 @@ class MockConnectionManager: CellularConnectionManager {
     typealias CompletionHandler = (Any?, Error?) -> Void
 
     // For testing multiple redirects
-    private var playList: [ConnectionResult2<URL, Data, Error>]
+    private var playList: [ConnectionResult<URL, Data, Error>]
     // This would help us simulate connection state changes
     var connectionStateHandlerPlaylist: [NWConnection.State] = [.setup, .preparing, .ready]
 
@@ -226,7 +226,7 @@ class MockConnectionManager: CellularConnectionManager {
     var isActivateConnectionCalled: Bool = false
 
 
-    init(playList: [ConnectionResult2<URL, Data, Error>], shouldFailCreatingHttpCommand: Bool = false) {
+    init(playList: [ConnectionResult<URL, Data, Error>], shouldFailCreatingHttpCommand: Bool = false) {
         self.playList = playList
         self.shouldFailCreatingHttpCommand = shouldFailCreatingHttpCommand
     }

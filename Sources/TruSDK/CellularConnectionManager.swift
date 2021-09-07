@@ -6,9 +6,9 @@ import Foundation
 import Network
 import os
 
-typealias ResultHandler = (ConnectionResult2<URL, Data, Error>) -> Void
-let TruSdkVersion = "0.2.7"
-let DEVICE_IP_URL = "https://eu.api.tru.id/public/coverage/v0.1/device_ip"
+typealias ResultHandler = (ConnectionResult<URL, Data, Error>) -> Void
+let TruSdkVersion = "0.2.8"
+let DEVICE_IP_URL = "https://%@.api.tru.id/public/coverage/v0.1/device_ip"
 
 //
 // Force connectivity to cellular only
@@ -101,9 +101,9 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             self?.traceCollector.stopTrace()
         }
     }
-
-    func isReachable(completion: @escaping (ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
-        let url = URL(string: DEVICE_IP_URL)!
+    
+    func isReachable(dataResidency: String?, completion: @escaping (ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
+        let url = URL(string: String(format:DEVICE_IP_URL, dataResidency ?? "eu"))!
 
         // This closuser will be called on main thread
         checkResponseHandler = { [weak self] (response) -> Void in
@@ -453,7 +453,6 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         self.cancelExistingConnection()
     }
 
-    // NEW - BEGIN
     func activateConnectionForDataPatch(url: URL, payload: String,  completion: @escaping ResultHandler) {
         self.cancelExistingConnection()
         guard let scheme = url.scheme,
@@ -510,8 +509,6 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         cmd += "\r\n" + body
         return cmd
     }
-
-    // NEW - END
 
     func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
@@ -573,7 +570,6 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
 
-    // UPDATED to use sendAndReceiveWithBody
     func activateConnectionForDataFetch(url: URL, completion: @escaping ResultHandler) {
         self.cancelExistingConnection()
         guard let scheme = url.scheme,
@@ -604,7 +600,6 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
 
-    // NEW
     func sendAndReceiveWithBody(requestUrl: URL, data: Data,  completion: @escaping ResultHandler) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
@@ -722,23 +717,22 @@ protocol InternalAPI {
 protocol ConnectionManager {
     func check(url: URL, completion: @escaping (Error?) -> Void)
     func checkWithTrace(url: URL, completion: @escaping (Error?, TraceInfo?) -> Void)
-    func isReachable(completion: @escaping (ConnectionResult<URL, ReachabilityDetails, ReachabilityError>) -> Void)
-
+    func isReachable(dataResidency: String?, completion: @escaping (ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>) -> Void)
+    
     //The following methods are deprecated
     func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void)
     func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)
     func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)
 }
 
-//NEW
-enum ConnectionResult2<URL, Data, Failure> where Failure: Error {
+enum ConnectionResult<URL, Data, Failure> where Failure: Error {
     case err(Failure?)
     case dataOK(Data?)
     case dataErr(Data?)
     case follow(URL)
 }
 
-enum ConnectionResult<URL, Data, Failure> where Failure: Error {
+enum ReachabilityResult<URL, Data, Failure> where Failure: Error {
     case failure(Failure?)
     case success(Data?)
 }

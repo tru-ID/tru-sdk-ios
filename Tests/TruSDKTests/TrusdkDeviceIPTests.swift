@@ -20,7 +20,7 @@ final class TrusdkDeviceIPTests: XCTestCase {
     var reachabilityError = ReachabilityError(type: "HTTP", title: "Redirect", status: 302, detail: "Some description")
     
 
-    lazy var playList: [ConnectionResult<URL, ReachabilityDetails, ReachabilityError>] = {
+    lazy var playList: [ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>] = {
         [
          .success(reachabilityDetails),
          .failure(reachabilityError)
