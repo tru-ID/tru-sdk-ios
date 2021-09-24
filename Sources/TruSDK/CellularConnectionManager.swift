@@ -290,7 +290,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
     // MARK: - Utility methods
     func createHttpCommand(url: URL) -> String? {
-        guard let host = url.host else {
+        guard let host = url.host, let scheme = url.scheme  else {
             return nil
         }
 
@@ -301,6 +301,11 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
 
         cmd += String(format:" HTTP/1.1\r\nHost: %@", host)
+        if (scheme.starts(with:"https") && url.port != nil && url.port != 443) {
+            cmd += String(format:":%d", url.port!)
+        } else if (scheme.starts(with:"http") && url.port != nil && url.port != 80) {
+            cmd += String(format:":%d", url.port!)
+        }
         cmd += "\r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: TruSdkVersion)) "
         #if canImport(UIKit)
         cmd += UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
@@ -484,7 +489,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
     
     func createHttpPatchCommand(url: URL, payload:String) -> String? {
-        guard let host = url.host else {
+        guard let host = url.host, let scheme = url.scheme else {
             return nil
         }
 
@@ -497,6 +502,11 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         let body = "[{\"op\": \"add\",\"path\":\"/payload\",\"value\": \(payload) }]"
 
         cmd += String(format:" HTTP/1.1\r\nHost: %@", host)
+        if (scheme.starts(with:"https") && url.port != nil && url.port != 443) {
+            cmd += String(format:":%d", url.port!)
+        } else if (scheme.starts(with:"http") && url.port != nil && url.port != 80) {
+            cmd += String(format:":%d", url.port!)
+        }
         cmd += "\r\nUser-Agent: tru-sdk-ios/\(debugInfo.userAgent(sdkVersion: TruSdkVersion)) "
         #if canImport(UIKit)
         cmd += UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
