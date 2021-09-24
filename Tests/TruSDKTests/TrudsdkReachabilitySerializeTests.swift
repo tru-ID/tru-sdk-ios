@@ -27,7 +27,7 @@ extension TrusdkReachabilitySerializeTests {
     
     func testReachability_WithoutErrors() {
         
-        let reachabilityDetails = ReachabilityDetails(countryCode: "GB", networkId: "2334", networkName: "EE", products: [Product(productId: "SIM777", productType: .SIMCheck)])
+        let reachabilityDetails = ReachabilityDetails(countryCode: "GB", networkId: "2334", networkName: "EE", products: [Product(productId: "SIM777", productName: "Sim Check")])
         
         let reachabilityError = ReachabilityError(type: "HTTP", title: "Redirect", status: 302, detail: "Some description")
         let expectedValue = """
