@@ -306,12 +306,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         } else if (scheme.starts(with:"http") && url.port != nil && url.port != 80) {
             cmd += String(format:":%d", url.port!)
         }
-        cmd += "\r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: TruSdkVersion)) "
-        #if canImport(UIKit)
-        cmd += UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
-        #elseif os(macOS)
-        cmd += "macOS / Unknown"
-        #endif
+        cmd += "\r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: TruSdkVersion))"
         cmd += "\r\nAccept: */*"
         cmd += "\r\nConnection: close\r\n\r\n"
 
@@ -507,12 +502,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         } else if (scheme.starts(with:"http") && url.port != nil && url.port != 80) {
             cmd += String(format:":%d", url.port!)
         }
-        cmd += "\r\nUser-Agent: tru-sdk-ios/\(debugInfo.userAgent(sdkVersion: TruSdkVersion)) "
-        #if canImport(UIKit)
-        cmd += UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
-        #elseif os(macOS)
-        cmd += "macOS / Unknown"
-        #endif
+        cmd += "\r\nUser-Agent: tru-sdk-ios/\(debugInfo.userAgent(sdkVersion: TruSdkVersion))"
         cmd += "\r\nAccept: */*"
         cmd += "\r\nContent-Type: application/json-patch+json"
         cmd += "\r\nContent-Length: \(body.count)\r\n"
