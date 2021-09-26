@@ -307,7 +307,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             cmd += String(format:":%d", url.port!)
         }
         cmd += "\r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: TruSdkVersion))"
-        cmd += "\r\nAccept: text/html, application/xhtml+xml, application/xml, */*"
+        cmd += "\r\nAccept: text/html,application/xhtml+xml,application/xml,*/*"
         cmd += "\r\nConnection: close\r\n\r\n"
 
         return cmd
