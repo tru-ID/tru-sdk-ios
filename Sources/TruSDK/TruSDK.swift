@@ -32,9 +32,10 @@ open class TruSDK {
     /// This method perform a request to a TruId enpoint and reports back the details if the connection was made over
     /// cellular.
     /// - Parameters:
+    ///   - dataResidency: the data residency associated with your tru.ID project
     ///   - completion: closure to report check result. Note that, this closure will be called on the Main Thread.
-    public func isReachable(completion: @escaping (Result<ReachabilityDetails?, ReachabilityError>) -> Void) {
-        connectionManager.isReachable() { connectionResult in
+    public func isReachable(dataResidency: String?, completion: @escaping (Result<ReachabilityDetails?, ReachabilityError>) -> Void) {
+        connectionManager.isReachable(dataResidency: dataResidency) { connectionResult in
             switch connectionResult {
             case .failure(let reachabilityError): do {
                 if let error = reachabilityError {
@@ -45,6 +46,12 @@ open class TruSDK {
             }
             case .success(let reachabilityDetails): completion(.success(reachabilityDetails))
             }
+        }
+    }
+    
+    public func isReachable(completion: @escaping (Result<ReachabilityDetails?, ReachabilityError>) -> Void) {
+        isReachable(dataResidency: nil) { connectionResult in
+            completion(connectionResult)
         }
     }
 

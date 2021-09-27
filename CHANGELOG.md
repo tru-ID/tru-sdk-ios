@@ -2,11 +2,19 @@
 
 Change Log
 ==========
+## Version 0.2.8
+_2021-09-27_
+
+**Bug Fix**
+- `isReachable` method product mapping
+- Better custom port handling
+- Accept header for navigation request
+
 ## Version 0.2.7
 _2021-09-06_
 
-**Changes**
-* Bug fix regarding forcing data cellular connectivity in `isReachable` method.
+**Bug Fix**
+* Forcing data cellular connectivity in `isReachable` method.
 
 ## Version 0.2.6
 _2021-08-06_
@@ -16,21 +24,21 @@ _2021-08-06_
 ## Version 0.2.5
 _2021-07-14_
 
-**Changes**
- * Bug fix for SDK version number and provide a method to serialise ReachabilityDetails to json string
+**Bug Fix**
+ * SDK version number and provide a method to serialise ReachabilityDetails to json string
 
 ## Version 0.2.4
 _2021-06-25_
 
-**Changes**
-   * Bug fix for decoding Reachability details
+**Bug Fix**
+   * Decoding Reachability details
    
 ## Version 0.2.3
 _2021-06-22_
 
-  **Changes**
-   * Bug fix checkWithTrace(...) public interface
-   * Bug fix on iOS target
+**Bug Fix**
+   * checkWithTrace(...) public interface
+   * on iOS target
    **New**
    * Introducing a new API checkWithTrace(...), performs a check given a Tru.Id URL and provides trace information.
    
