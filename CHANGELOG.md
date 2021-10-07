@@ -2,6 +2,12 @@
 
 Change Log
 ==========
+## Version 0.2.9
+_2021-10-07_
+
+**Changes**
+- Added device info to userAgent method in Trace
+
 ## Version 0.2.8
 _2021-09-27_
 
