@@ -115,7 +115,7 @@ public class DebugInfo {
     }
     
     public func userAgent(sdkVersion: String) -> String {
-        return "tru-sdk-ios/\(sdkVersion)"
+        return "tru-sdk-ios/\(sdkVersion) \(deviceString())"
     }
 
     public func deviceString() -> String {

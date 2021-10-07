@@ -7,7 +7,7 @@ import Network
 import os
 
 typealias ResultHandler = (ConnectionResult<URL, Data, Error>) -> Void
-let TruSdkVersion = "0.2.8"
+let TruSdkVersion = "0.2.9"
 let DEVICE_IP_URL = "https://%@.api.tru.id/public/coverage/v0.1/device_ip"
 
 //
