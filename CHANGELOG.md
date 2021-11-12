@@ -5,6 +5,10 @@ Change Log
 ## Version 0.2.9
 _2021-10-07_
 
+
+**New**
+- isReachable support for custom data residency
+
 **Changes**
 - Added device info to userAgent
 
