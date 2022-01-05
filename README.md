@@ -20,8 +20,9 @@ let package = Package(
 )
 ```
 
-```## Compatibility
+## Compatibility
 
+```
  * **Minimum iOS**: TruSDK is compatible with iOS 12+
 ```
 
