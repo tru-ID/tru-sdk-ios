@@ -7,7 +7,7 @@ import Network
 import os
 
 typealias ResultHandler = (ConnectionResult<URL, Data, Error>) -> Void
-let TruSdkVersion = "0.2.9"
+let TruSdkVersion = "0.2.10"
 let DEVICE_IP_URL = "https://%@.api.tru.id/public/coverage/v0.1/device_ip"
 
 //
@@ -35,7 +35,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }()
 
     // MARK: - New methods
-    func check(url: URL, completion: @escaping (Error?) -> Void) {
+    func check(url: URL, operators: String?, completion: @escaping (Error?) -> Void) {
 
         guard let _ = url.scheme, let _ = url.host else {
             completion(NetworkError.other("No scheme or host found"))
@@ -43,7 +43,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
 
         var redirectCount = 0
-        // This closuser will be called on main thread
+        // This closure will be called on main thread
         checkResponseHandler = { [weak self] (response) -> Void in
 
             guard let self = self else {
@@ -59,7 +59,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                     self.traceCollector.addDebug(log: "Redirect found: \(url.absoluteString)")
                     self.traceCollector.addTrace(log: "\nfound redirect: \(url) - \(self.traceCollector.now())")
                     self.createTimer()
-                    self.activateConnection(url: url, completion: self.checkResponseHandler)
+                    self.activateConnection(url: url, operators: nil, completion: self.checkResponseHandler)
                 } else {
                     self.traceCollector.addDebug(log: "MAX Redirects reached \(String(self.MAX_REDIRECTS))")
                     self.fireTimer()
@@ -87,25 +87,25 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         DispatchQueue.main.async {
             self.startMonitoring()
             self.createTimer()
-            self.activateConnection(url: url, completion: self.checkResponseHandler)
+            self.activateConnection(url: url, operators: operators, completion: self.checkResponseHandler)
         }
 
     }
     
-    func checkWithTrace(url: URL, completion: @escaping (Error?, TraceInfo?) -> Void) {
+    func checkWithTrace(url: URL, operators: String?, completion: @escaping (Error?, TraceInfo?) -> Void) {
         traceCollector.isDebugInfoCollectionEnabled = true
         traceCollector.isConsoleLogsEnabled = true
         traceCollector.startTrace()
-        check(url: url) { [weak self] error in
+        check(url: url, operators: operators) { [weak self] error in
             completion(error, self?.traceCollector.traceInfo())
             self?.traceCollector.stopTrace()
         }
     }
-    
-    func isReachable(dataResidency: String?, completion: @escaping (ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
+
+    func isReachable(dataResidency: String?, operators: String?, completion: @escaping (ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
         let url = URL(string: String(format:DEVICE_IP_URL, dataResidency ?? "eu"))!
 
-        // This closuser will be called on main thread
+        // This closure will be called on main thread
         checkResponseHandler = { [weak self] (response) -> Void in
 
             guard let self = self else {
@@ -151,7 +151,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         DispatchQueue.main.async {
             self.startMonitoring()
             self.createTimer()
-            self.activateConnectionForDataFetch(url: url, completion: self.checkResponseHandler)
+            self.activateConnectionForDataFetch(url: url, operators: operators, completion: self.checkResponseHandler)
         }
     }
     
@@ -163,7 +163,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             return
         }
 
-        // This closuser will be called on main thread
+        // This closure will be called on main thread
         checkResponseHandler = { [weak self] (response) -> Void in
 
             guard let self = self else {
@@ -210,7 +210,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         DispatchQueue.main.async {
             self.startMonitoring()
             self.createTimer()
-            self.activateConnectionForDataFetch(url: url, completion: self.checkResponseHandler)
+            self.activateConnectionForDataFetch(url: url, operators: nil, completion: self.checkResponseHandler)
         }
     }
     
@@ -232,7 +232,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
     
-    func activateConnection(url: URL, completion: @escaping ResultHandler) {
+    func activateConnection(url: URL, operators: String?, completion: @escaping ResultHandler) {
         self.cancelExistingConnection()
 
         guard let scheme = url.scheme,
@@ -241,7 +241,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             return
         }
 
-        guard let command = createHttpCommand(url: url),
+        guard let command = createHttpCommand(url: url, operators: operators),
               let data = command.data(using: .utf8) else {
             completion(.err(NetworkError.other("Unable to create HTTP Request command")))
             return
@@ -289,7 +289,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     // MARK: - Utility methods
-    func createHttpCommand(url: URL) -> String? {
+    func createHttpCommand(url: URL, operators: String?) -> String? {
         guard let host = url.host, let scheme = url.scheme  else {
             return nil
         }
@@ -305,6 +305,9 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             cmd += String(format:":%d", url.port!)
         } else if (scheme.starts(with:"http") && url.port != nil && url.port != 80) {
             cmd += String(format:":%d", url.port!)
+        }
+        if let op = operators {
+            cmd += "\r\nx-tru-ops: \(String(describing: op)) "
         }
         cmd += "\r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: TruSdkVersion))"
         cmd += "\r\nAccept: text/html,application/xhtml+xml,application/xml,*/*"
@@ -502,7 +505,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         } else if (scheme.starts(with:"http") && url.port != nil && url.port != 80) {
             cmd += String(format:":%d", url.port!)
         }
-        cmd += "\r\nUser-Agent: tru-sdk-ios/\(debugInfo.userAgent(sdkVersion: TruSdkVersion))"
+        cmd += "\r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: TruSdkVersion)) "
         cmd += "\r\nAccept: */*"
         cmd += "\r\nContent-Type: application/json-patch+json"
         cmd += "\r\nContent-Length: \(body.count)\r\n"
@@ -570,7 +573,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
 
-    func activateConnectionForDataFetch(url: URL, completion: @escaping ResultHandler) {
+    func activateConnectionForDataFetch(url: URL, operators: String?, completion: @escaping ResultHandler) {
         self.cancelExistingConnection()
         guard let scheme = url.scheme,
               let host = url.host else {
@@ -578,7 +581,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             return
         }
 
-        guard let command = createHttpCommand(url: url),
+        guard let command = createHttpCommand(url: url, operators: operators),
               let data = command.data(using: .utf8) else {
             completion(.err(NetworkError.other("Unable to create HTTP Request command")))
             return
@@ -698,7 +701,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
     // MARK: deprecated
     func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void) {
-        check(url: url) { (error) in
+        check(url: url, operators: nil) { (error) in
             completion("", error)
         }
     }
@@ -707,17 +710,18 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
 protocol InternalAPI {
     func parseRedirect(requestUrl: URL, response: String) -> URL?
+    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler)
     func sendAndReceiveWithBody(requestUrl: URL, data: Data,  completion: @escaping ResultHandler)
-    func createHttpCommand(url: URL) -> String?
+    func createHttpCommand(url: URL, operators: String?) -> String?
     func startMonitoring()
     func stopMonitoring()
 }
 
 // MARK: - Internal API
 protocol ConnectionManager {
-    func check(url: URL, completion: @escaping (Error?) -> Void)
-    func checkWithTrace(url: URL, completion: @escaping (Error?, TraceInfo?) -> Void)
-    func isReachable(dataResidency: String?, completion: @escaping (ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>) -> Void)
+    func check(url: URL, operators: String?, completion: @escaping (Error?) -> Void)
+    func checkWithTrace(url: URL, operators: String?, completion: @escaping (Error?, TraceInfo?) -> Void)
+    func isReachable(dataResidency: String?, operators: String?, completion: @escaping (ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>) -> Void)
     
     //The following methods are deprecated
     func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void)
@@ -748,5 +752,3 @@ enum NetworkError: Error, Equatable {
     case httpServer(String)
     case other(String)
 }
-
-

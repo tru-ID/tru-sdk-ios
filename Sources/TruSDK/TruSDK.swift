@@ -1,12 +1,25 @@
 import Foundation
+import CoreTelephony
 @available(macOS 10.15, *)
 @available(iOS 12.0, *)
 open class TruSDK {
     
-    private let connectionManager: ConnectionManager;
+    private let connectionManager: ConnectionManager
+    private let operators: String?
 
     init(connectionManager: ConnectionManager) {
         self.connectionManager = connectionManager
+        // retreive operators associated with handset:
+        // a commas separated list of mobile operators (MCCMNC)
+        let t = CTTelephonyNetworkInfo()
+        var ops: Array<String> = Array()
+        for (_, carrier) in t.serviceSubscriberCellularProviders ?? [:] {
+            let op: String = String(format: "%@%@",carrier.mobileCountryCode ?? "", carrier.mobileNetworkCode ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if (op.lengthOfBytes(using: .utf8)>0) {
+                ops.append(op)
+            }
+        }
+        self.operators = ops.joined(separator: ",")
     }
 
     public convenience init() {
@@ -15,19 +28,20 @@ open class TruSDK {
 
     /// This method perform a check request given a URL
     /// - Parameters:
-    ///   - url: URL provided by Tru.Id
+    ///   - url: URL provided by tru.ID
     ///   - completion: closure to report check result. Note that, this closure will be called on the Main Thread.
     public func check(url: URL, completion: @escaping (Error?) -> Void) {
-        connectionManager.check(url: url, completion: completion)
+        connectionManager.check(url: url, operators: self.operators, completion: completion)
     }
 
     /// This method perform a check request given a URL
     /// - Parameters:
-    ///   - url: URL provided by Tru.Id
+    ///   - url: URL provided by tru.ID
     ///   - completion: closure to report check result and the trace information. Note that, this closure will be called on the Main Thread.
     public func checkWithTrace(url: URL, completion: @escaping (Error?, TraceInfo?) -> Void) {
-        connectionManager.checkWithTrace(url: url, completion: completion)
+        connectionManager.checkWithTrace(url: url, operators: self.operators, completion: completion)
     }
+    
     
     /// This method perform a request to a TruId enpoint and reports back the details if the connection was made over
     /// cellular.
@@ -35,7 +49,7 @@ open class TruSDK {
     ///   - dataResidency: the data residency associated with your tru.ID project
     ///   - completion: closure to report check result. Note that, this closure will be called on the Main Thread.
     public func isReachable(dataResidency: String?, completion: @escaping (Result<ReachabilityDetails?, ReachabilityError>) -> Void) {
-        connectionManager.isReachable(dataResidency: dataResidency) { connectionResult in
+        connectionManager.isReachable(dataResidency: dataResidency, operators: self.operators) { connectionResult in
             switch connectionResult {
             case .failure(let reachabilityError): do {
                 if let error = reachabilityError {

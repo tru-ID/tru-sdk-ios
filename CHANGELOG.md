@@ -2,9 +2,14 @@
 
 Change Log
 ==========
+## Version 0.2.10
+_2022-01-11_
+
+**Changes**
+- Internal refactoring
+
 ## Version 0.2.9
 _2021-10-07_
-
 
 **New**
 - isReachable support for custom data residency
