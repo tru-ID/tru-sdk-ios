@@ -34,7 +34,7 @@ import TruSDK
 
 let tru: TruSDK = TruSDK()
 
-tru.check(url: url) { error in 
+tru.checkUrlWithResponseBody(url: url) { error, body in 
 ...
 }
 

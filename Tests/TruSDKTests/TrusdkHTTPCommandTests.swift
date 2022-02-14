@@ -46,7 +46,7 @@ extension TrusdkHTTPCommandTests {
         let url = URL(string: urlString)!
         let expectation = httpCommand(url: url, sdkVersion: TruSdkVersion)
 
-        let httpCommand = connectionManager.createHttpCommand(url: url)
+        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil)
         XCTAssertEqual(expectation, httpCommand)
     }
 
@@ -58,7 +58,7 @@ extension TrusdkHTTPCommandTests {
 
         let expectation = httpCommand(url: url, sdkVersion: TruSdkVersion)
 
-        let httpCommand = connectionManager.createHttpCommand(url: url)
+        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil)
         XCTAssertEqual(expectation, httpCommand)
     }
 
@@ -68,9 +68,9 @@ extension TrusdkHTTPCommandTests {
 
         let url = URL(string: urlString)!
 
-        let command = connectionManager.createHttpCommand(url: url)
+        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil)
 
-        XCTAssertNil(command)
+        XCTAssertNil(httpCommand)
     }
 
     func testCreateHTTPCommand_SchemeOnlyURL_ShouldReturn_Nil() {
@@ -78,9 +78,9 @@ extension TrusdkHTTPCommandTests {
 
         let url = URL(string: urlString)!
 
-        let command = connectionManager.createHttpCommand(url: url)
+        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil)
 
-        XCTAssertNil(command)
+        XCTAssertNil(httpCommand)
     }
 
     func testCreateHTTPCommand_URLWithOutAHost_ShouldReturn_Nil() {
@@ -90,9 +90,9 @@ extension TrusdkHTTPCommandTests {
 
         let url = URL(string: urlString)!
 
-        let command = connectionManager.createHttpCommand(url: url)
+        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil)
 
-        XCTAssertNil(command)
+        XCTAssertNil(httpCommand)
     }
 
 }

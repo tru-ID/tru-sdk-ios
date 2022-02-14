@@ -30,7 +30,7 @@ open class TruSDK {
     /// - Parameters:
     ///   - url: URL provided by tru.ID
     ///   - completion: closure to report check result. Note that, this closure will be called on the Main Thread.
-    public func check(url: URL, completion: @escaping (Error?) -> Void) {
+    public func checkUrlWithResponseBody(url: URL, completion: @escaping (Error?, [String : Any]?) -> Void) {
         connectionManager.check(url: url, operators: self.operators, completion: completion)
     }
 
@@ -69,6 +69,11 @@ open class TruSDK {
         }
     }
 
+    @available(*, deprecated, renamed: "getCheckUrlResponseBody(url:completion:)")
+    public func check(url: URL, completion: @escaping (Error?) -> Void) {
+        connectionManager._check(url: url, operators: self.operators, completion: completion)
+    }
+    
     @available(*, deprecated, renamed: "isReachable(completion:)")
     public func jsonResponse(for url: URL, completion: @escaping ([String : Any]?) -> Void) {
         connectionManager.jsonResponse(url: url, completion: completion)

@@ -2,6 +2,14 @@
 
 Change Log
 ==========
+## Version 0.3.0
+_2022-02-11_
+**New**
+- `checkUrlWithResponseBody` new method
+
+**Changes**
+- Method `check` is deprecated.
+
 ## Version 0.2.10
 _2022-01-11_
 
