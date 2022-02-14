@@ -154,13 +154,13 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
     }
 
     // MARK: - New methods
-    override func check(url: URL, completion: @escaping (Error?) -> Void) {
-        super.check(url: url, completion: completion)
+    override func check(url: URL, operators: String?, completion: @escaping (Error?, [String : Any]?) -> Void) {
+        super.check(url: url, operators: operators, completion: completion)
     }
 
-    override func activateConnection(url: URL, completion: @escaping ResultHandler) {
+    override func activateConnection(url: URL,operators: String?, cookies: [String]?, completion: @escaping ResultHandler) {
         let url = URL(string: "https://www.tru.id")!
-        let mockCommand = createHttpCommand(url: url)
+        let mockCommand = createHttpCommand(url: url, operators: operators, cookies: cookies)
         let mockData = mockCommand?.data(using: .utf8)
         guard let data = mockData else {
             return
@@ -202,7 +202,7 @@ class MockDeviceIPConnectionManager: CellularConnectionManager {
         self.result = result
     }
 
-    override func isReachable(dataResidency: String?, completion: @escaping (ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
+    override func isReachable(dataResidency: String?, operators: String?, completion: @escaping (ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>) -> Void) {
         completion(result)
     }
 }
@@ -232,14 +232,14 @@ class MockConnectionManager: CellularConnectionManager {
     }
 
     // MARK: - New methods
-    override func check(url: URL, completion: @escaping (Error?) -> Void) {
-        super.check(url: url, completion: completion)
+    override func check(url: URL, operators: String?, completion: @escaping (Error?, [String : Any]?) -> Void) {
+        super.check(url: url, operators: operators, completion: completion)
     }
 
-    override func activateConnection(url: URL, completion: @escaping ResultHandler) {
+    override func activateConnection(url: URL,operators: String?, cookies: [String]?, completion: @escaping ResultHandler) {
         self.isActivateConnectionCalled = true
         self.connectionLifecycle.append("activateConnection")
-        let mockCommand = createHttpCommand(url: url)
+        let mockCommand = createHttpCommand(url: url, operators: operators, cookies: cookies)
         let mockData = mockCommand?.data(using: .utf8)
         guard let data = mockData else {
             completion(.err(NetworkError.other("")))
@@ -292,11 +292,11 @@ class MockConnectionManager: CellularConnectionManager {
         //Empty implementation to avoid accidental triggers
     }
     
-    override func createHttpCommand(url: URL) -> String? {
+    override func createHttpCommand(url: URL, operators: String?, cookies: [String]?) -> String? {
         if shouldFailCreatingHttpCommand {
             return nil
         } else {
-            return super.createHttpCommand(url: url)
+            return super.createHttpCommand(url: url, operators: operators, cookies: cookies)
         }
     }
     override func startMonitoring() {

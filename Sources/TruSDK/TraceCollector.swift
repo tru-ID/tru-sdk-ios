@@ -1,10 +1,3 @@
-//
-//  TraceCollector.swift
-//  
-//
-//  Created by Murat Yakici on 14/06/2021.
-//
-
 #if canImport(UIKit)
 import UIKit
 #else
@@ -16,11 +9,10 @@ import os
 final class TraceCollector {
 
     let queue = DispatchQueue(label: "id.tru.tracecollector.queue")
-    //let traceLog = OSLog(subsystem: "id.tru.sdk", category: "trace")
-    //os_log("", log: traceLog, type: .fault, "")
 
     private var trace = ""
     private var isTraceEnabled = false
+    private var body: [String : Any]? = nil
 
     private var debugInfo = DebugInfo()
     var isDebugInfoCollectionEnabled = false
@@ -58,7 +50,7 @@ final class TraceCollector {
     /// Provides the TraceInfo recorded
     func traceInfo() -> TraceInfo {
         queue.sync() {
-            return TraceInfo(trace: trace, debugInfo: debugInfo)
+            return TraceInfo(trace: trace, debugInfo: debugInfo, responseBody: body)
         }
     }
 
@@ -80,6 +72,10 @@ final class TraceCollector {
         if self.isConsoleLogsEnabled {
             os_log("%s", type:type, log)
         }
+    }
+
+    func addBody(body: [String : Any]?) {
+        self.body = body
     }
 
     func now() -> String {
@@ -132,6 +128,7 @@ public class DebugInfo {
 public struct TraceInfo {
     public let trace: String
     public let debugInfo: DebugInfo
+    public let responseBody: [String : Any]?
 }
 
 func isoTimestampUsingCurrentTimeZone() -> String {

@@ -54,7 +54,7 @@ extension TrusdkCheckTests {
         //results will be processes from last to first
         let playList: [ConnectionResult<URL, Data, Error>] = [
             .err(nil),
-            .follow(URL(string: "https://www.tru.id")!)
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id")!, cookies:nil))
         ]
 
         let mock = MockConnectionManager(playList: playList)
@@ -80,9 +80,9 @@ extension TrusdkCheckTests {
     func testCheck_Given3Redirects_ShouldComplete_WithoutError() {
         let playList: [ConnectionResult<URL, Data, Error>] = [
             .err(nil),
-            .follow(URL(string: "https://www.tru.id/uk")!),
-            .follow(URL(string: "https://www.tru.id")!),
-            .follow(URL(string: "https://tru.id")!)
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/uk")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://tru.id")!, cookies:nil))
         ]
 
         let mock = MockConnectionManager(playList: playList)
@@ -114,18 +114,18 @@ extension TrusdkCheckTests {
     func testCheck_GivenExceedingMAXRedirects_ShouldComplete_WithError() {
         let playList: [ConnectionResult<URL, Data, Error>] = [
             .err(nil),
-            .follow(URL(string: "https://www.tru.id/12")!),
-            .follow(URL(string: "https://www.tru.id/11")!),
-            .follow(URL(string: "https://www.tru.id/10")!), //MAX Redirects is 10
-            .follow(URL(string: "https://www.tru.id/9")!),
-            .follow(URL(string: "https://www.tru.id/8")!),
-            .follow(URL(string: "https://www.tru.id/7")!),
-            .follow(URL(string: "https://www.tru.id/6")!),
-            .follow(URL(string: "https://www.tru.id/5")!),
-            .follow(URL(string: "https://www.tru.id/4")!),
-            .follow(URL(string: "https://www.tru.id/3")!),
-            .follow(URL(string: "https://www.tru.id/2")!),
-            .follow(URL(string: "https://www.tru.id/1")!)
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/12")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/11")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/10")!, cookies:nil)), //MAX Redirects is 10
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/9")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/8")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/7")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/6")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/5")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/4")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/3")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/2")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/1")!, cookies:nil))
         ]
 
         let mock = MockStateHandlingConnectionManager(playList: playList)
@@ -147,9 +147,9 @@ extension TrusdkCheckTests {
 
         let playList: [ConnectionResult<URL, Data, Error>] = [
             .err(nil),
-            .follow(URL(string: "/uk")!), //This shouldn't happen, we are covering this in parseRedirect test
-            .follow(URL(string: "https://tru.id")!),
-            .follow(URL(string: "https://www.tru.id")!)
+            .follow(RedirectResult(url:URL(string: "/uk")!,cookies:nil)), //This shouldn't happen, we are covering this in parseRedirect test
+            .follow(RedirectResult(url:URL(string: "https://tru.id/uk")!, cookies:nil)),
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/uk")!, cookies:nil))
         ]
         let mock = MockConnectionManager(playList: playList)
         let sdk = TruSDK(connectionManager: mock)
@@ -216,7 +216,7 @@ extension TrusdkCheckTests {
 
         let playList: [ConnectionResult<URL, Data, Error>] = [
             .err(expectedError),
-            .follow(URL(string: "https://www.tru.id/uk")!)
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id/uk")!,cookies:nil))
         ]
 
         let mock = MockConnectionManager(playList: playList)
@@ -252,7 +252,7 @@ extension TrusdkCheckTests {
     func testConnectionStateSeq_GivenSetupPreparingReady_ShouldComplete_WithoutError() {
         let playList: [ConnectionResult<URL, Data, Error>] = [
             .err(nil),
-            .follow(URL(string: "https://www.tru.id")!)
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id")!,cookies: nil))
         ]
 
         let mock = MockConnectionManager(playList: playList)
@@ -275,7 +275,7 @@ extension TrusdkCheckTests {
     func testConnectionStateSeq_GivenSetupPreparingFailed_ShouldComplete_WithError() {
         let playList: [ConnectionResult<URL, Data, Error>] = [
             .err(nil),
-            .follow(URL(string: "https://www.tru.id")!)
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id")!,cookies: nil))
         ]
 
         let mock = MockConnectionManager(playList: playList)
@@ -300,7 +300,7 @@ extension TrusdkCheckTests {
     func testConnectionStateSeq_GivenSetupPreparingCancelled_ShouldComplete_WithError() {
         let playList: [ConnectionResult<URL, Data, Error>] = [
             .err(nil),
-            .follow(URL(string: "https://www.tru.id")!)
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id")!,cookies: nil))
         ]
 
         let mock = MockConnectionManager(playList: playList)
@@ -323,7 +323,7 @@ extension TrusdkCheckTests {
     func testConnectionStateSeq_GivenSetupPreparingWaitingPreparingReady_ShouldComplete_WithoutError() {
         let playList: [ConnectionResult<URL, Data, Error>] = [
             .err(nil),
-            .follow(URL(string: "https://www.tru.id")!)
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id")!,cookies: nil))
         ]
 
         let mock = MockConnectionManager(playList: playList)
@@ -346,7 +346,7 @@ extension TrusdkCheckTests {
     func testConnectionStateSeq_GivenSetupPreparingWaitingPreparingCancelled_ShouldComplete_WithoutError() {
         let playList: [ConnectionResult<URL, Data, Error>] = [
             .err(nil),
-            .follow(URL(string: "https://www.tru.id")!)
+            .follow(RedirectResult(url:URL(string: "https://www.tru.id")!,cookies: nil))
         ]
 
         let mock = MockConnectionManager(playList: playList)

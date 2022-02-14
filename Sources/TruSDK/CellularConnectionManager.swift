@@ -7,7 +7,7 @@ import Network
 import os
 
 typealias ResultHandler = (ConnectionResult<URL, Data, Error>) -> Void
-let TruSdkVersion = "0.2.10"
+let TruSdkVersion = "0.3.0"
 let DEVICE_IP_URL = "https://%@.api.tru.id/public/coverage/v0.1/device_ip"
 
 //
@@ -29,16 +29,13 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     private var checkResponseHandler: ResultHandler!
     private var debugInfo = DebugInfo()
 
-
     lazy var traceCollector: TraceCollector = {
         TraceCollector()
     }()
 
-    // MARK: - New methods
-    func check(url: URL, operators: String?, completion: @escaping (Error?) -> Void) {
-
+    func check(url: URL, operators: String?, completion: @escaping (Error?, [String : Any]?) -> Void) {
         guard let _ = url.scheme, let _ = url.host else {
-            completion(NetworkError.other("No scheme or host found"))
+            completion(NetworkError.other("No scheme or host found"), nil)
             return
         }
 
@@ -47,47 +44,61 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         checkResponseHandler = { [weak self] (response) -> Void in
 
             guard let self = self else {
-                completion(NetworkError.other("Unable to carry on"))
+                completion(NetworkError.other("Unable to carry on"), nil)
                 return
             }
 
             switch response {
-            case .follow(let url):
-                redirectCount+=1
-                if redirectCount <= self.MAX_REDIRECTS {
-                    os_log("Redirect found: %s", url.absoluteString)
-                    self.traceCollector.addDebug(log: "Redirect found: \(url.absoluteString)")
-                    self.traceCollector.addTrace(log: "\nfound redirect: \(url) - \(self.traceCollector.now())")
-                    self.createTimer()
-                    self.activateConnection(url: url, operators: nil, completion: self.checkResponseHandler)
+            case .follow(let redirectResult):
+                if let url = redirectResult.url {
+                    redirectCount+=1
+                    if redirectCount <= self.MAX_REDIRECTS {
+                        self.traceCollector.addDebug(log: "Redirect found: \(url.absoluteString)")
+                        self.traceCollector.addTrace(log: "\nfound redirect: \(url) - \(self.traceCollector.now())")
+                        self.createTimer()
+                        self.activateConnection(url: url, operators: nil, cookies: redirectResult.cookies, completion: self.checkResponseHandler)
+                    } else {
+                        self.traceCollector.addDebug(log: "MAX Redirects reached \(String(self.MAX_REDIRECTS))")
+                        //self.fireTimer()
+                        self.cleanUp()
+                    }
                 } else {
-                    self.traceCollector.addDebug(log: "MAX Redirects reached \(String(self.MAX_REDIRECTS))")
-                    self.fireTimer()
+                    self.traceCollector.addDebug(log: "Redirect NOT FOUND")
+                    self.cleanUp()
                 }
             case .err(let error):
                 if let err = error {
                     self.traceCollector.addDebug(log: "Check completed with \(err.localizedDescription)")
                 }
                 self.cleanUp()
-                completion(error)
+                completion(error, nil)
             case .dataOK(let data):
-                if let json = self.decodeResponse(data:data!) {
-                    self.traceCollector.addDebug(log: "json: \(json)\n")
-                    self.activateConnectionForDataPatch(url: url, payload: json, completion:self.checkResponseHandler)
+                self.cleanUp()
+                var dictionary: [String : Any]?
+                do {
+                    // load JSON response into a dictionary
+                    dictionary = try JSONSerialization.jsonObject(with: data!, options: .mutableContainers) as? [String : Any]
+                    if let d = dictionary {
+                        self.traceCollector.addDebug(log: "Response Body - \(d.description)")
+                        completion(nil, dictionary)
+                    }
+                } catch {
+                    let msg = error.localizedDescription
+                    self.traceCollector.addDebug(log: "Response Body parsing error - \(msg)")
+                    completion(NetworkError.other("JSON deserializarion"), nil)
                 }
             case .dataErr(_):
-                os_log("Data err received")
+                self.cleanUp()
                 self.traceCollector.addDebug(log: "Data err received - this method should not be handling data")
             }
         }
 
-        os_log("opening %s", url.absoluteString)
         self.traceCollector.addDebug(log: "url: \(url) - \(self.traceCollector.now())")
         //Initiating on the main thread to synch, as all connection update/state events will also be called on main thread
         DispatchQueue.main.async {
             self.startMonitoring()
             self.createTimer()
-            self.activateConnection(url: url, operators: operators, completion: self.checkResponseHandler)
+            self.activateConnection(url: url, operators: operators, cookies: nil, completion: self.checkResponseHandler)
         }
 
     }
@@ -96,7 +107,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         traceCollector.isDebugInfoCollectionEnabled = true
         traceCollector.isConsoleLogsEnabled = true
         traceCollector.startTrace()
-        check(url: url, operators: operators) { [weak self] error in
+        check(url: url, operators: operators) { [weak self] error, resp in
+            self?.traceCollector.addBody(body: resp)
             completion(error, self?.traceCollector.traceInfo())
             self?.traceCollector.stopTrace()
         }
@@ -151,79 +163,11 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         DispatchQueue.main.async {
             self.startMonitoring()
             self.createTimer()
-            self.activateConnectionForDataFetch(url: url, operators: operators, completion: self.checkResponseHandler)
+            self.activateConnectionForDataFetch(url: url, operators: operators, cookies: nil, completion: self.checkResponseHandler)
         }
     }
     
-    // MARK: - Data fetch
-    func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)  {
-
-        guard let _ = url.scheme, let _ = url.host else {
-            completion(nil)
-            return
-        }
-
-        // This closure will be called on main thread
-        checkResponseHandler = { [weak self] (response) -> Void in
-
-            guard let self = self else {
-                completion(nil)
-                return
-            }
-
-            switch response {
-            case .follow(_):
-                os_log("Unexpected redirect received")
-                self.cleanUp()
-                completion(nil)
-            case .err(let error):
-                if let err = error {
-                    os_log("jsonResponse completed with %s", err.localizedDescription)
-                }
-                self.cleanUp()
-                completion(nil)
-            case .dataOK(let data):
-                os_log("Data received")
-                self.cleanUp()
-                var dict: [String : Any]?
-                do {
-                    // load JSON response into a dictionary
-                    dict = try JSONSerialization.jsonObject(with: data!, options: .mutableContainers) as? [String : Any]
-                    if let dict = dict {
-                        os_log("dict %s",dict.description)
-                    }
-                } catch {
-                    let msg = error.localizedDescription
-                    os_log("jsonResponse completed with %s", msg)
-                }
-                completion(dict)
-            case .dataErr(_):
-                os_log("Data err received")
-                self.cleanUp()
-                completion(nil)
-            }
-
-        }
-
-        os_log("opening %s", url.absoluteString)
-        //Initiating on the main thread to synch, as all connection update/state events will also be called on main thread
-        DispatchQueue.main.async {
-            self.startMonitoring()
-            self.createTimer()
-            self.activateConnectionForDataFetch(url: url, operators: nil, completion: self.checkResponseHandler)
-        }
-    }
     
-    func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)  {
-        self.jsonResponse(url: url) { (result) in
-            guard let r = result, let value = r[key] as? String else {
-                completion("")
-                return
-            }
-            completion(value)
-        }
-    }
-
     // MARK: - Internal
     func cancelExistingConnection() {
         if self.connection != nil {
@@ -232,7 +176,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
     
-    func activateConnection(url: URL, operators: String?, completion: @escaping ResultHandler) {
+    func activateConnection(url: URL, operators: String?, cookies: [String]?, completion: @escaping ResultHandler) {
         self.cancelExistingConnection()
 
         guard let scheme = url.scheme,
@@ -241,7 +185,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             return
         }
 
-        guard let command = createHttpCommand(url: url, operators: operators),
+        guard let command = createHttpCommand(url: url, operators: operators, cookies: cookies),
               let data = command.data(using: .utf8) else {
             completion(.err(NetworkError.other("Unable to create HTTP Request command")))
             return
@@ -289,7 +233,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     // MARK: - Utility methods
-    func createHttpCommand(url: URL, operators: String?) -> String? {
+    func createHttpCommand(url: URL, operators: String?, cookies: [String]?) -> String? {
         guard let host = url.host, let scheme = url.scheme  else {
             return nil
         }
@@ -309,7 +253,17 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         if let op = operators {
             cmd += "\r\nx-tru-ops: \(String(describing: op)) "
         }
-        cmd += "\r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: TruSdkVersion))"
+        if let cookies = cookies {
+            var cookieString = String()
+            for i in 0..<cookies.count {
+                cookieString += String(describing: cookies[i])
+                if (i < cookies.count - 1) {
+                    cookieString += "; "
+                }
+            }
+            cmd += "\r\nCookie: \(String(describing: cookieString))"
+        }
+        cmd += "\r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: TruSdkVersion)) "
         cmd += "\r\nAccept: text/html,application/xhtml+xml,application/xml,*/*"
         cmd += "\r\nConnection: close\r\n\r\n"
 
@@ -366,7 +320,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return response
     }
 
-    func parseRedirect(requestUrl: URL, response: String) -> URL? {
+    func parseRedirect(requestUrl: URL, response: String) -> RedirectResult? {
         guard let _ = requestUrl.host else {
             return nil
         }
@@ -377,13 +331,31 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             // some location header are not properly encoded
             let cleanRedirect = redirect.replacingOccurrences(of: " ", with: "+")
             if let redirectURL =  URL(string: String(cleanRedirect)) {
-                return redirectURL.host == nil ? URL(string: redirectURL.path, relativeTo: requestUrl) : redirectURL
+                
+                return RedirectResult(url: redirectURL.host == nil ? URL(string: redirectURL.path, relativeTo: requestUrl) as! URL : redirectURL, cookies: self.parseCookies(response: response))
             } else {
                 self.traceCollector.addDebug(log: "URL malformed \(cleanRedirect)")
                 return nil
             }
         }
         return nil
+    }
+    
+    func parseCookies(response: String) -> [String]? {
+        var cookies = [String]()
+        var position = response.startIndex
+        while let range = response.range(of: #"Set-Cookie: (.*)\r\n"#, options: .regularExpression, range: position..<response.endIndex) {
+            let tmp = response[range]
+            self.traceCollector.addDebug(log:"parseCookies \(tmp)")
+            let parts = tmp.components(separatedBy: " ")
+            if (!parts.isEmpty && parts.count>1) {
+                let cookie = parts[1].replacingOccurrences(of: ";", with: "")
+                cookies.append(cookie)
+                self.traceCollector.addDebug(log:"=> \(cookie)")
+            }
+            position = range.upperBound
+        }
+        return (!cookies.isEmpty) ? cookies : nil
     }
 
     func createTimer() {
@@ -456,7 +428,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         self.cancelExistingConnection()
     }
 
-    func activateConnectionForDataPatch(url: URL, payload: String,  completion: @escaping ResultHandler) {
+    func activateConnectionForDataPatch(url: URL, operators: String?, payload: String,  completion: @escaping ResultHandler) {
         self.cancelExistingConnection()
         guard let scheme = url.scheme,
               let host = url.host else {
@@ -464,7 +436,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             return
         }
 
-        guard let command = createHttpPatchCommand(url: url, payload:payload),
+        guard let command = createHttpPatchCommand(url: url, operators: operators, payload:payload),
               let data = command.data(using: .utf8) else {
             completion(.err(NetworkError.other("Unable to create HTTP Request command")))
             return
@@ -486,7 +458,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
     
-    func createHttpPatchCommand(url: URL, payload:String) -> String? {
+    func createHttpPatchCommand(url: URL, operators: String?, payload:String) -> String? {
         guard let host = url.host, let scheme = url.scheme else {
             return nil
         }
@@ -505,6 +477,9 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         } else if (scheme.starts(with:"http") && url.port != nil && url.port != 80) {
             cmd += String(format:":%d", url.port!)
         }
+        if let op = operators {
+            cmd += "\r\nx-tru-ops: \(String(describing: op)) "
+        }
         cmd += "\r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: TruSdkVersion)) "
         cmd += "\r\nAccept: */*"
         cmd += "\r\nContent-Type: application/json-patch+json"
@@ -513,7 +488,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return cmd
     }
 
-    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
+   func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 self.traceCollector.addDebug(type: .error, log: "Sending error \(err.localizedDescription)")
@@ -522,8 +497,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             }
         }))
 
-        // only reading the first 4Kb to retreive the Status & Location headers, not interested in the body
-        connection?.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, context, isComplete, error in
+        // only reading the first 8Kb to retreive the Status & Location headers, not interested in the body
+        connection?.receive(minimumIncompleteLength: 1, maximumLength: 8192) { data, context, isComplete, error in
 
             self.traceCollector.addDebug(log: "Receive isComplete: \(isComplete.description)")
 
@@ -540,8 +515,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 self.traceCollector.addTrace(log:"\nresponse:\n\(String(describing: response))")
 
                 let status = self.httpStatusCode(response: response)
-                self.traceCollector.addDebug(log: "\n----\nHTTP status: \(String(status))")
-
+                self.traceCollector.addDebug(log: "\n\nHTTP status: \(String(status))")
                 self.traceCollector.addTrace(log:"receive: status \(status) - \(self.traceCollector.now())")
 
                 switch status {
@@ -573,7 +547,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
 
-    func activateConnectionForDataFetch(url: URL, operators: String?, completion: @escaping ResultHandler) {
+    func activateConnectionForDataFetch(url: URL, operators: String?, cookies: [String]?, completion: @escaping ResultHandler) {
         self.cancelExistingConnection()
         guard let scheme = url.scheme,
               let host = url.host else {
@@ -581,7 +555,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             return
         }
 
-        guard let command = createHttpCommand(url: url, operators: operators),
+        guard let command = createHttpCommand(url: url, operators: operators, cookies: cookies),
               let data = command.data(using: .utf8) else {
             completion(.err(NetworkError.other("Unable to create HTTP Request command")))
             return
@@ -603,7 +577,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
 
-    func sendAndReceiveWithBody(requestUrl: URL, data: Data,  completion: @escaping ResultHandler) {
+   func sendAndReceiveWithBody(requestUrl: URL, data: Data,  completion: @escaping ResultHandler) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 os_log("Sending error %s", type: .error, err.localizedDescription)
@@ -629,28 +603,32 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 os_log("\n----\nHTTP status: %s", String(status))
 
                 switch status {
+                case 200...202:
+                    if let r = self.getResponseBody(response: response) {
+                        completion(.dataOK(r))
+                    } else {
+                        completion(.err(NetworkError.other("Unexpected HTTP Status \(status)")))
+                    }
                 case 301...303, 307...308:
-                    completion(.err(NetworkError.other("Unexpected HTTP Status\(status)")))
+                    guard let url = self.parseRedirect(requestUrl: requestUrl, response: response) else {
+                          completion(.err(NetworkError.invalidRedirectURL("Invalid URL - unable to parseRecirect")))
+                          return
+                      }
+                      completion(.follow(url))
                 case 400...451:
                     if let r = self.getResponseBody(response: response) {
                         completion(.dataErr(r))
                     } else {
-                        completion(.err(NetworkError.other("HTTP Status can't be parsed \(status)")))
+                        completion(.err(NetworkError.other("Unexpected HTTP Status \(status)")))
                     }
                 case 500...511:
                     if let r = self.getResponseBody(response: response) {
                         completion(.dataErr(r))
                     } else {
-                        completion(.err(NetworkError.other("HTTP Status can't be parsed \(status)")))
-                    }
-                case 200...206:
-                    if let r = self.getResponseBody(response: response) {
-                        completion(.dataOK(r))
-                    } else {
-                        completion(.err(NetworkError.other("HTTP Status can't be parsed \(status)")))
+                        completion(.err(NetworkError.other("Unexpected HTTP Status \(status)")))
                     }
                 default:
-                    completion(.err(NetworkError.other("HTTP Status can't be parsed \(status)")))
+                    completion(.err(NetworkError.other("Unexpected HTTP Status \(status)")))
                 }
             } else {
                 completion(.err(NetworkError.noData("Response has no data or corrupt")))
@@ -671,9 +649,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                                 let c = response[r1.upperBound..<r2.lowerBound]
                                 if let start = c.firstIndex(of: "{") {
                                     let json = c[start..<c.index(c.endIndex, offsetBy: 0)]
-                                    os_log("json: [%s]",  String(json))
+                                    os_log("json: %s",  String(json))
                                     let jsonString = String(json)
-                                    os_log("jsonString: [%s]", jsonString)
                                     guard let data = jsonString.data(using: .utf8) else {
                                         return nil
                                     }
@@ -685,9 +662,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                     let content = response[range.upperBound..<response.index(response.endIndex, offsetBy: 0)]
                     if let start = content.firstIndex(of: "{") {
                         let json = content[start..<response.index(response.endIndex, offsetBy: 0)]
-                        os_log("json: [%s]",  String(json))
+                        os_log("json: %s",  String(json))
                         let jsonString = String(json)
-                        os_log("jsonString: [%s]", jsonString)
                         guard let data = jsonString.data(using: .utf8) else {
                             return nil
                         }
@@ -698,42 +674,116 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
         return nil
     }
-
     // MARK: deprecated
-    func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void) {
-        check(url: url, operators: nil) { (error) in
-            completion("", error)
-        }
-    }
+func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void) {
+         check(url: url, operators: nil) { (error, resp) in
+             completion("", error)
+         }
+     }
+     
+     func _check(url: URL, operators: String?, completion: @escaping (Error?) -> Void) {
+         check(url: url, operators: operators) { (error, resp) in
+             completion(error)
+         }
+     }
+     
+     func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)  {
 
+         guard let _ = url.scheme, let _ = url.host else {
+             completion(nil)
+             return
+         }
+
+         // This closuser will be called on main thread
+         checkResponseHandler = { [weak self] (response) -> Void in
+
+             guard let self = self else {
+                 completion(nil)
+                 return
+             }
+
+             switch response {
+             case .follow(_):
+                 os_log("Unexpected redirect received")
+                 self.cleanUp()
+                 completion(nil)
+             case .err(let error):
+                 if let err = error {
+                     os_log("jsonResponse completed with %s", err.localizedDescription)
+                 }
+                 self.cleanUp()
+                 completion(nil)
+             case .dataOK(let data):
+                 os_log("Data received")
+                 self.cleanUp()
+                 var dict: [String : Any]?
+                 do {
+                     // load JSON response into a dictionary
+                     dict = try JSONSerialization.jsonObject(with: data!, options: .mutableContainers) as? [String : Any]
+                 } catch {
+                     let msg = error.localizedDescription
+                     os_log("jsonResponse completed with %s", msg)
+                 }
+                 completion(dict)
+             case .dataErr(_):
+                 os_log("Data err received")
+                 self.cleanUp()
+                 completion(nil)
+             }
+
+         }
+
+         os_log("opening %s", url.absoluteString)
+         //Initiating on the main thread to synch, as all connection update/state events will also be called on main thread
+         DispatchQueue.main.async {
+             self.startMonitoring()
+             self.createTimer()
+             self.activateConnectionForDataFetch(url: url, operators: nil, cookies: nil, completion: self.checkResponseHandler)
+         }
+     }
+     
+     func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)  {
+         self.jsonResponse(url: url) { (result) in
+             guard let r = result, let value = r[key] as? String else {
+                 completion("")
+                 return
+             }
+             completion(value)
+         }
+     }
 }
 
 protocol InternalAPI {
-    func parseRedirect(requestUrl: URL, response: String) -> URL?
-    func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler)
+    func parseRedirect(requestUrl: URL, response: String) -> RedirectResult?
     func sendAndReceiveWithBody(requestUrl: URL, data: Data,  completion: @escaping ResultHandler)
-    func createHttpCommand(url: URL, operators: String?) -> String?
+    func createHttpCommand(url: URL, operators: String?, cookies: [String]?) -> String?
     func startMonitoring()
     func stopMonitoring()
 }
 
 // MARK: - Internal API
 protocol ConnectionManager {
-    func check(url: URL, operators: String?, completion: @escaping (Error?) -> Void)
+    func check(url: URL, operators: String?, completion: @escaping (Error?, [String : Any]?) -> Void)
     func checkWithTrace(url: URL, operators: String?, completion: @escaping (Error?, TraceInfo?) -> Void)
     func isReachable(dataResidency: String?, operators: String?, completion: @escaping (ReachabilityResult<URL, ReachabilityDetails, ReachabilityError>) -> Void)
     
     //The following methods are deprecated
+    func _check(url: URL, operators: String?, completion: @escaping (Error?) -> Void)
     func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void)
     func jsonResponse(url: URL, completion: @escaping ([String : Any]?) -> Void)
     func jsonPropertyValue(for key: String, from url: URL, completion: @escaping (String) -> Void)
+}
+
+public struct RedirectResult {
+    public var url: URL?
+    public let cookies: [String]?
 }
 
 enum ConnectionResult<URL, Data, Failure> where Failure: Error {
     case err(Failure?)
     case dataOK(Data?)
     case dataErr(Data?)
-    case follow(URL)
+    case follow(RedirectResult)
 }
 
 enum ReachabilityResult<URL, Data, Failure> where Failure: Error {
