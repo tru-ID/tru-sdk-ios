@@ -7,7 +7,7 @@ import Network
 import os
 
 typealias ResultHandler = (ConnectionResult<URL, Data, Error>) -> Void
-let TruSdkVersion = "0.3.0"
+let TruSdkVersion = "0.3.1"
 let DEVICE_IP_URL = "https://%@.api.tru.id/public/coverage/v0.1/device_ip"
 
 //
@@ -149,8 +149,8 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                 os_log("Data err received")
                 self.cleanUp()
                 do {
-                    let model = try JSONDecoder().decode(ReachabilityDetails.self, from: data!)
-                    completion(.success(model))
+                    let model = try JSONDecoder().decode(ReachabilityError.self, from: data!)
+                    completion(.failure(model))
                 } catch {
                     completion(.failure(ReachabilityError(type: "Unknown", title: "No Error type", status: -1, detail: "Received an error with no known type")))
                 }
@@ -253,6 +253,9 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         if let op = operators {
             cmd += "\r\nx-tru-ops: \(String(describing: op)) "
         }
+        #if targetEnvironment(simulator)
+            cmd += "\r\nx-tru-mode: sandbox"
+        #endif
         if let cookies = cookies {
             var cookieString = String()
             for i in 0..<cookies.count {
@@ -295,10 +298,12 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         self.traceCollector.addDebug(log: "connection scheme \(scheme) \(String(fport.rawValue))")
         let params = NWParameters(tls: tlsOptions , tcp: tcpOptions)
         params.serviceClass = .responsiveData
-        // force network connection to cellular only
-        params.requiredInterfaceType = .cellular
-        params.prohibitExpensivePaths = false
-        params.prohibitedInterfaceTypes = [.wifi]
+        #if !targetEnvironment(simulator)
+            // force network connection to cellular only
+            params.requiredInterfaceType = .cellular
+            params.prohibitExpensivePaths = false
+            params.prohibitedInterfaceTypes = [.wifi]
+        #endif
 
         connection = NWConnection(host: NWEndpoint.Host(host), port: fport, using: params)
 
@@ -331,8 +336,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             // some location header are not properly encoded
             let cleanRedirect = redirect.replacingOccurrences(of: " ", with: "+")
             if let redirectURL =  URL(string: String(cleanRedirect)) {
-                
-                return RedirectResult(url: redirectURL.host == nil ? URL(string: redirectURL.path, relativeTo: requestUrl) as! URL : redirectURL, cookies: self.parseCookies(response: response))
+                return RedirectResult(url: redirectURL.host == nil ? URL(string: redirectURL.path, relativeTo: requestUrl)! : redirectURL, cookies: self.parseCookies(response: response))
             } else {
                 self.traceCollector.addDebug(log: "URL malformed \(cleanRedirect)")
                 return nil
@@ -641,7 +645,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             // retrieve content type
             let contentType = response[rangeContentType]
             let type = contentType[contentType.index(contentType.startIndex, offsetBy: 9)..<contentType.index(contentType.endIndex, offsetBy: -1)]
-            if (type.contains("application/json") || type.contains("application/hal+json")) {
+            if (type.contains("application/json") || type.contains("application/hal+json") || type.contains("application/problem+json")) {
                 if let range = response.range(of: "\r\n\r\n") {
                     if let rangeTransferEncoding = response.range(of: #"Transfer-Encoding: chunked\r\n"#, options: .regularExpression) {
                         if (!rangeTransferEncoding.isEmpty) {
