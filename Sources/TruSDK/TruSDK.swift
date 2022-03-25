@@ -43,7 +43,7 @@ import CoreTelephony
     }
     
     @objc public func testFunction(url: URL) {
-        print("test url: \(url))
+        print("test url: \(url)")
     }
     
     /// This method perform a request to a TruId enpoint and reports back the details if the connection was made over
