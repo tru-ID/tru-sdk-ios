@@ -42,6 +42,9 @@ import CoreTelephony
         connectionManager.checkWithTrace(url: url, operators: self.operators, completion: completion)
     }
     
+    @objc public func testFunction(url: URL) {
+        print("test url: \(url))
+    }
     
     /// This method perform a request to a TruId enpoint and reports back the details if the connection was made over
     /// cellular.
