@@ -69,7 +69,7 @@ open class TruSDK {
         }
     }
 
-    @available(*, deprecated, renamed: "getCheckUrlResponseBody(url:completion:)")
+    @available(*, deprecated, renamed: "checkUrlWithResponseBody(url:completion:)")
     public func check(url: URL, completion: @escaping (Error?) -> Void) {
         connectionManager._check(url: url, operators: self.operators, completion: completion)
     }
