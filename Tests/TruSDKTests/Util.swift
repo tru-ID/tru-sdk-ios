@@ -28,9 +28,9 @@ func httpCommand(url: URL, sdkVersion: String) -> String {
     let expectation = """
     GET \(url.path)\(query) HTTP/1.1\
     \r\nHost: \(url.host!)\
+    \r\nx-tru-mode: sandbox\
     \r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: sdkVersion)) \
-    \(system)\
-    \r\nAccept: */*\
+    \r\nAccept: text/html,application/xhtml+xml,application/xml,*/*\
     \r\nConnection: close\r\n\r\n
     """
 
@@ -158,7 +158,7 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
         super.check(url: url, operators: operators, completion: completion)
     }
 
-    override func activateConnection(url: URL,operators: String?, cookies: [String]?, completion: @escaping ResultHandler) {
+    override func activateConnection(url: URL,operators: String?, cookies: [HTTPCookie]?, completion: @escaping ResultHandler) {
         let url = URL(string: "https://www.tru.id")!
         let mockCommand = createHttpCommand(url: url, operators: operators, cookies: cookies)
         let mockData = mockCommand?.data(using: .utf8)
@@ -167,7 +167,7 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
         }
 
         stateUpdateHandler = createConnectionUpdateHandler(completion: completion) {
-            self.sendAndReceive(requestUrl: url, data: data, completion: completion)
+            self.sendAndReceive(requestUrl: url, data: data, cookies: cookies, completion: completion)
         }
 
         //Simulate state changes
@@ -176,7 +176,7 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
         }
     }
 
-    override func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
+    override func sendAndReceive(requestUrl: URL, data: Data, cookies: [HTTPCookie]?, completion: @escaping ResultHandler) {
         if let result = playList.popLast() {
             completion(result)
         } else {
@@ -236,7 +236,7 @@ class MockConnectionManager: CellularConnectionManager {
         super.check(url: url, operators: operators, completion: completion)
     }
 
-    override func activateConnection(url: URL,operators: String?, cookies: [String]?, completion: @escaping ResultHandler) {
+    override func activateConnection(url: URL,operators: String?, cookies: [HTTPCookie]?, completion: @escaping ResultHandler) {
         self.isActivateConnectionCalled = true
         self.connectionLifecycle.append("activateConnection")
         let mockCommand = createHttpCommand(url: url, operators: operators, cookies: cookies)
@@ -246,7 +246,7 @@ class MockConnectionManager: CellularConnectionManager {
             return
         }
         let stateUpdateHandler = createConnectionUpdateHandler(completion: completion) {
-            self.sendAndReceive(requestUrl: url, data: data, completion: completion)
+            self.sendAndReceive(requestUrl: url, data: data, cookies:cookies, completion: completion)
         }
 
         //Simulate state changes
@@ -278,7 +278,7 @@ class MockConnectionManager: CellularConnectionManager {
         return nil
     }
 
-    override func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
+    override func sendAndReceive(requestUrl: URL, data: Data, cookies: [HTTPCookie]?, completion: @escaping ResultHandler) {
         if let result = playList.popLast() {
             completion(result)
         } else {
@@ -292,7 +292,7 @@ class MockConnectionManager: CellularConnectionManager {
         //Empty implementation to avoid accidental triggers
     }
     
-    override func createHttpCommand(url: URL, operators: String?, cookies: [String]?) -> String? {
+    override func createHttpCommand(url: URL, operators: String?, cookies: [HTTPCookie]?) -> String? {
         if shouldFailCreatingHttpCommand {
             return nil
         } else {

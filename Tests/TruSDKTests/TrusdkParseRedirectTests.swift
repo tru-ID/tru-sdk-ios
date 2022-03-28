@@ -43,7 +43,7 @@ extension TrusdkParseRedirectTests {
         let expectedRedirectURL = "https://www.tru.id/uk"
         let response = http3XXResponse(code: .movedPermanently, url: expectedRedirectURL)
         let actualRedirectURL = connectionManager.parseRedirect(requestUrl: URL(string: "https://tru.id")!,
-                                                                response: response)
+                                                                response: response, cookies: nil)
         XCTAssertNotNil(actualRedirectURL)
         XCTAssertEqual(actualRedirectURL?.url?.absoluteString, expectedRedirectURL)
     }
@@ -51,7 +51,7 @@ extension TrusdkParseRedirectTests {
     func testParseRedirect_ShouldReturn_Nil_WhenReponseIsNot3XX() {
         let response = http500Response()
         let actualRedirectURL = connectionManager.parseRedirect(requestUrl: URL(string: "https://tru.id")!,
-                                                                response: response)
+                                                                response: response, cookies: nil)
         XCTAssertNil(actualRedirectURL)
     }
 
@@ -59,26 +59,26 @@ extension TrusdkParseRedirectTests {
         let expectedRedirectURL = "https://tru.id"
         let response = http3XXResponse(code: .movedPermanently, url: expectedRedirectURL)
         let actualRedirectURL = connectionManager.parseRedirect(requestUrl: URL(string: "/uk")!,
-                                                                response: response)
+                                                                response: response, cookies: nil)
         XCTAssertNil(actualRedirectURL)
     }
 
     func testParseRedirect_ShouldReturn_Nil_WhenResponseIsNotARedirect() {
         let response = http2xxResponse()
         let actualRedirectURL = connectionManager.parseRedirect(requestUrl: URL(string: "https://tru.id/uk")!,
-                                                                response: response)
+                                                                response: response, cookies: nil)
         XCTAssertNil(actualRedirectURL)
     }
 
     func testParseRedirect_ShouldReturn_Nil_WhenThereIsNoLocation() {
         var response = http3XXResponseWith(code: .movedPermanently, locationString: "")
         var actualRedirectURL = connectionManager.parseRedirect(requestUrl: URL(string: "/uk")!,
-                                                                response: response)
+                                                                response: response, cookies: nil)
         XCTAssertNil(actualRedirectURL)
 
         response = http3XXResponseWith(code: .movedPermanently, locationString: "Location: ")
         actualRedirectURL = connectionManager.parseRedirect(requestUrl: URL(string: "/uk")!,
-                                                                response: response)
+                                                                response: response, cookies: nil)
         XCTAssertNil(actualRedirectURL)
 
     }
@@ -87,12 +87,12 @@ extension TrusdkParseRedirectTests {
         let expectedURL = "https://tru.id"
         var response = http3XXResponseWith(code: .movedPermanently, locationString: "location: \(expectedURL)")
         var actualRedirectURL = connectionManager.parseRedirect(requestUrl: URL(string: "https://tru.id/uk")!,
-                                                                response: response)
+                                                                response: response, cookies: nil)
         XCTAssertEqual(actualRedirectURL!.url?.absoluteString, expectedURL)
 
         response = http3XXResponseWith(code: .movedPermanently, locationString: "Location: \(expectedURL)")
         actualRedirectURL = connectionManager.parseRedirect(requestUrl: URL(string: "https://tru.id/uk")!,
-                                                                response: response)
+                                                                response: response, cookies: nil)
         XCTAssertEqual(actualRedirectURL!.url?.absoluteString, expectedURL)
 
     }
@@ -102,14 +102,14 @@ extension TrusdkParseRedirectTests {
         //Empty String produced an nil URL
         var response = http3XXResponseWith(code: .movedPermanently, locationString: "location: ")
         var actualRedirectURL = connectionManager.parseRedirect(requestUrl: requestURL,
-                                                                response: response)
+                                                                response: response, cookies: nil)
 
         XCTAssertNil(actualRedirectURL)
 
         //OR Invalid characters produced an nil URL
         response = http3XXResponseWith(code: .movedPermanently, locationString: "location: http://tru.id/?{}><\\")
         actualRedirectURL = connectionManager.parseRedirect(requestUrl: requestURL,
-                                                                response: response)
+                                                                response: response, cookies: nil)
 
         XCTAssertNil(actualRedirectURL)
 
@@ -121,7 +121,7 @@ extension TrusdkParseRedirectTests {
         let expectedRedirectURL = URL(string: "https://tru.id/uk")!
         let response = http3XXResponseWith(code: .movedPermanently, locationString: "location: /uk")
         let actualRedirectURL = connectionManager.parseRedirect(requestUrl: requestURL,
-                                                                response: response)
+                                                                response: response, cookies: nil)
 
         XCTAssertEqual(actualRedirectURL?.url?.absoluteString, expectedRedirectURL.absoluteString)
     }

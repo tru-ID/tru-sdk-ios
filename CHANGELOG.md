@@ -2,6 +2,11 @@
 
 Change Log
 ==========
+## Version 0.3.2
+_2022-04-27_
+**Bug Fix**
+- Redirect handling
+
 ## Version 0.3.1
 _2022-03-07_
 **New**

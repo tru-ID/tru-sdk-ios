@@ -7,7 +7,7 @@ import Network
 import os
 
 typealias ResultHandler = (ConnectionResult<URL, Data, Error>) -> Void
-let TruSdkVersion = "0.3.1"
+let TruSdkVersion = "0.3.2"
 let DEVICE_IP_URL = "https://%@.api.tru.id/public/coverage/v0.1/device_ip"
 
 //
@@ -54,7 +54,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                     redirectCount+=1
                     if redirectCount <= self.MAX_REDIRECTS {
                         self.traceCollector.addDebug(log: "Redirect found: \(url.absoluteString)")
-                        self.traceCollector.addTrace(log: "\nfound redirect: \(url) - \(self.traceCollector.now())")
+                        self.traceCollector.addTrace(log: "\nfound redirect: \(url) - cookies: \(String(describing: redirectResult.cookies)) - \(self.traceCollector.now())")
                         self.createTimer()
                         self.activateConnection(url: url, operators: nil, cookies: redirectResult.cookies, completion: self.checkResponseHandler)
                     } else {
@@ -176,7 +176,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
     
-    func activateConnection(url: URL, operators: String?, cookies: [String]?, completion: @escaping ResultHandler) {
+    func activateConnection(url: URL, operators: String?, cookies: [HTTPCookie]?, completion: @escaping ResultHandler) {
         self.cancelExistingConnection()
 
         guard let scheme = url.scheme,
@@ -197,7 +197,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         connection = createConnection(scheme: scheme, host: host, port: url.port)
         if let connection = connection {
             connection.stateUpdateHandler = createConnectionUpdateHandler(completion: completion, readyStateHandler: { [weak self] in
-                self?.sendAndReceive(requestUrl: url, data: data, completion: completion)
+                self?.sendAndReceive(requestUrl: url, data: data, cookies: cookies, completion: completion)
             })
             // All connection events will be delivered on the main thread.
             connection.start(queue: .main)
@@ -233,12 +233,16 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
     }
 
     // MARK: - Utility methods
-    func createHttpCommand(url: URL, operators: String?, cookies: [String]?) -> String? {
+    func createHttpCommand(url: URL, operators: String?, cookies: [HTTPCookie]?) -> String? {
         guard let host = url.host, let scheme = url.scheme  else {
             return nil
         }
-
-        var cmd = String(format: "GET %@", url.path)
+        var path = url.path
+        // the path method is stripping ending / so adding it back
+        if (url.absoluteString.hasSuffix("/") && !url.path.hasSuffix("/")) {
+            path += "/"
+        }
+        var cmd = String(format: "GET %@", path)
 
         if let q = url.query {
             cmd += String(format:"?%@", q)
@@ -257,14 +261,20 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             cmd += "\r\nx-tru-mode: sandbox"
         #endif
         if let cookies = cookies {
+            var cookieCount = 0
             var cookieString = String()
             for i in 0..<cookies.count {
-                cookieString += String(describing: cookies[i])
-                if (i < cookies.count - 1) {
-                    cookieString += "; "
+                if (((cookies[i].isSecure && scheme == "https") || (!cookies[i].isSecure && scheme == "http")) && (cookies[i].domain == "" || (cookies[i].domain != "" && host.contains(cookies[i].domain))) && (cookies[i].path == "" || cookies[i].path == path)) {
+                    if (cookieCount > 0) {
+                        cookieString += "; "
+                    }
+                    cookieString += String(format:"%@=%@", cookies[i].name, cookies[i].value)
+                    cookieCount += 1
                 }
             }
-            cmd += "\r\nCookie: \(String(describing: cookieString))"
+            if (cookieString.count > 0) {
+                cmd += "\r\nCookie: \(String(describing: cookieString))"
+            }
         }
         cmd += "\r\nUser-Agent: \(debugInfo.userAgent(sdkVersion: TruSdkVersion)) "
         cmd += "\r\nAccept: text/html,application/xhtml+xml,application/xml,*/*"
@@ -325,7 +335,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return response
     }
 
-    func parseRedirect(requestUrl: URL, response: String) -> RedirectResult? {
+    func parseRedirect(requestUrl: URL, response: String, cookies: [HTTPCookie]?) -> RedirectResult? {
         guard let _ = requestUrl.host else {
             return nil
         }
@@ -336,7 +346,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
             // some location header are not properly encoded
             let cleanRedirect = redirect.replacingOccurrences(of: " ", with: "+")
             if let redirectURL =  URL(string: String(cleanRedirect)) {
-                return RedirectResult(url: redirectURL.host == nil ? URL(string: redirectURL.path, relativeTo: requestUrl)! : redirectURL, cookies: self.parseCookies(response: response))
+                return RedirectResult(url: redirectURL.host == nil ? URL(string: redirectURL.path, relativeTo: requestUrl)! : redirectURL, cookies: self.parseCookies(url:requestUrl, response: response, existingCookies: cookies))
             } else {
                 self.traceCollector.addDebug(log: "URL malformed \(cleanRedirect)")
                 return nil
@@ -345,17 +355,22 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return nil
     }
     
-    func parseCookies(response: String) -> [String]? {
-        var cookies = [String]()
+    func parseCookies(url: URL, response: String, existingCookies: [HTTPCookie]?) -> [HTTPCookie]? {
+        var cookies = [HTTPCookie]()
+        if let existing = existingCookies {
+            for i in 0..<existing.count {
+                cookies.append(existing[i])
+            }
+        }
         var position = response.startIndex
-        while let range = response.range(of: #"Set-Cookie: (.*)\r\n"#, options: .regularExpression, range: position..<response.endIndex) {
-            let tmp = response[range]
-            self.traceCollector.addDebug(log:"parseCookies \(tmp)")
-            let parts = tmp.components(separatedBy: " ")
-            if (!parts.isEmpty && parts.count>1) {
-                let cookie = parts[1].replacingOccurrences(of: ";", with: "")
-                cookies.append(cookie)
-                self.traceCollector.addDebug(log:"=> \(cookie)")
+        while let range = response.range(of: #"et-Cookie: (.*)\r\n"#, options: .regularExpression, range: position..<response.endIndex) {
+            let line = response[range]
+            let cookieString = line[line.index(line.startIndex, offsetBy: 11)..<line.index(line.endIndex, offsetBy: -1)]
+            self.traceCollector.addDebug(log:"parseCookies \(cookieString)")
+            let cs: [HTTPCookie]? = HTTPCookie.cookies(withResponseHeaderFields: ["Set-Cookie" : String(cookieString)], for: url)
+            if (!cs!.isEmpty) {
+                cookies.append((cs?.first)!)
+                self.traceCollector.addDebug(log:"cookie=> \((cs!.first)!)")
             }
             position = range.upperBound
         }
@@ -452,7 +467,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         connection = createConnection(scheme: scheme, host: host, port: url.port)
         if let connection = connection {
             connection.stateUpdateHandler = createConnectionUpdateHandler(completion: completion, readyStateHandler: { [weak self] in
-                self?.sendAndReceive(requestUrl: url, data: data, completion: completion)
+                self?.sendAndReceive(requestUrl: url, data: data, cookies: nil, completion: completion)
             })
             // All connection events will be delivered on the main thread.
             connection.start(queue: .main)
@@ -492,7 +507,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         return cmd
     }
 
-   func sendAndReceive(requestUrl: URL, data: Data, completion: @escaping ResultHandler) {
+   func sendAndReceive(requestUrl: URL, data: Data, cookies: [HTTPCookie]?, completion: @escaping ResultHandler) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 self.traceCollector.addDebug(type: .error, log: "Sending error \(err.localizedDescription)")
@@ -530,7 +545,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                     }
                     completion(.err(nil))
                 case 301...303, 307...308:
-                    guard let url = self.parseRedirect(requestUrl: requestUrl, response: response) else {
+                    guard let url = self.parseRedirect(requestUrl: requestUrl, response: response, cookies: cookies) else {
                         completion(.err(NetworkError.invalidRedirectURL("Invalid URL - unable to parseRecirect")))
                         return
                     }
@@ -551,7 +566,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
 
-    func activateConnectionForDataFetch(url: URL, operators: String?, cookies: [String]?, completion: @escaping ResultHandler) {
+    func activateConnectionForDataFetch(url: URL, operators: String?, cookies: [HTTPCookie]?, completion: @escaping ResultHandler) {
         self.cancelExistingConnection()
         guard let scheme = url.scheme,
               let host = url.host else {
@@ -571,7 +586,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         connection = createConnection(scheme: scheme, host: host, port: url.port)
         if let connection = connection {
             connection.stateUpdateHandler = createConnectionUpdateHandler(completion: completion, readyStateHandler: { [weak self] in
-                self?.sendAndReceiveWithBody(requestUrl: url, data: data, completion: completion)
+                self?.sendAndReceiveWithBody(requestUrl: url, data: data, cookies:cookies, completion: completion)
             })
             // All connection events will be delivered on the main thread.
             connection.start(queue: .main)
@@ -581,7 +596,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
         }
     }
 
-   func sendAndReceiveWithBody(requestUrl: URL, data: Data,  completion: @escaping ResultHandler) {
+   func sendAndReceiveWithBody(requestUrl: URL, data: Data, cookies: [HTTPCookie]?, completion: @escaping ResultHandler) {
         connection?.send(content: data, completion: NWConnection.SendCompletion.contentProcessed({ (error) in
             if let err = error {
                 os_log("Sending error %s", type: .error, err.localizedDescription)
@@ -614,7 +629,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
                         completion(.err(NetworkError.other("Unexpected HTTP Status \(status)")))
                     }
                 case 301...303, 307...308:
-                    guard let url = self.parseRedirect(requestUrl: requestUrl, response: response) else {
+                    guard let url = self.parseRedirect(requestUrl: requestUrl, response: response, cookies: cookies) else {
                           completion(.err(NetworkError.invalidRedirectURL("Invalid URL - unable to parseRecirect")))
                           return
                       }
@@ -758,9 +773,9 @@ func openCheckUrl(url: URL, completion: @escaping (Any?, Error?) -> Void) {
 }
 
 protocol InternalAPI {
-    func parseRedirect(requestUrl: URL, response: String) -> RedirectResult?
-    func sendAndReceiveWithBody(requestUrl: URL, data: Data,  completion: @escaping ResultHandler)
-    func createHttpCommand(url: URL, operators: String?, cookies: [String]?) -> String?
+    func parseRedirect(requestUrl: URL, response: String, cookies: [HTTPCookie]?) -> RedirectResult?
+    func sendAndReceiveWithBody(requestUrl: URL, data: Data, cookies: [HTTPCookie]?, completion: @escaping ResultHandler)
+    func createHttpCommand(url: URL, operators: String?, cookies: [HTTPCookie]?) -> String?
     func startMonitoring()
     func stopMonitoring()
 }
@@ -780,7 +795,7 @@ protocol ConnectionManager {
 
 public struct RedirectResult {
     public var url: URL?
-    public let cookies: [String]?
+    public let cookies: [HTTPCookie]?
 }
 
 enum ConnectionResult<URL, Data, Failure> where Failure: Error {
@@ -794,7 +809,6 @@ enum ReachabilityResult<URL, Data, Failure> where Failure: Error {
     case failure(Failure?)
     case success(Data?)
 }
-
 
 enum NetworkError: Error, Equatable {
     case invalidRedirectURL(String)

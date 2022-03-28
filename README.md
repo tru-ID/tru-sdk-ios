@@ -8,16 +8,22 @@ iOS SDK for tru.ID: Blazingly fast phone verification. Exposes APIs for instant,
 
 ## Installation
 
-Add this project on your `Package.swift`
+Using Package Dependencies 
 
 ```swift
 import PackageDescription
 
 let package = Package(
     dependencies: [
-        .Package(url: "https://gitlab.com/tru-id/tru-sdk-ios.git", majorVersion: 0, minor: 0)
+        .Package(url: "https://github.com/tru-ID/tru-sdk-ios.git, majorVersion: 0, minor: 0)
     ]
 )
+```
+Using cocoapods 
+
+```
+  pod 'tru-sdk-ios', '~> x.y.z'
+
 ```
 
 ## Compatibility
