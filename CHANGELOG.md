@@ -2,6 +2,11 @@
 
 Change Log
 ==========
+## Version 0.3.3
+_2022-04-22_
+**New**
+- ObjcTruSDK class for Kotlin MultiPlatform Compatibility
+
 ## Version 0.3.2
 _2022-04-27_
 **Bug Fix**

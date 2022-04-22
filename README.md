@@ -40,6 +40,16 @@ import TruSDK
 
 let tru: TruSDK = TruSDK()
 
+//check if device is eligible
+tru.isReachable { result in
+...           
+}
+
+//create a PhoneCheck with your backend 
+//in order to get a checkURL
+...
+
+//trigger the check URL from the device
 tru.checkUrlWithResponseBody(url: url) { error, body in 
 ...
 }
@@ -48,9 +58,8 @@ tru.checkWithTrace(url: url) { error, trace in
 ...
 }
 
-tru.isReachable { result in
-...
-}
+//retrieve PhoneCheck result from backend
+
 ```
 
 
