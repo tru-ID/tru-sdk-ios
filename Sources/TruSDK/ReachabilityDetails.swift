@@ -8,11 +8,19 @@
 import Foundation
 
 /// A struct to hold the details of the Cellular network a request is made.
-public struct ReachabilityDetails: Codable, Equatable {
-    public let countryCode: String
-    public let networkId: String
-    public let networkName: String
-    public let products: [Product]?
+@objc public class ReachabilityDetails: NSObject, Codable {
+    @objc public let countryCode: String
+    @objc public let networkId: String
+    @objc public let networkName: String
+    @objc public let products: [Product]?
+    
+    public init(countryCode: String, networkId: String, networkName: String, products: [Product]?) {
+        self.countryCode = countryCode
+        self.networkId = networkId
+        self.networkName = networkName
+        self.products = products
+    
+    }
     
     private enum CodingKeys : String, CodingKey {
         case countryCode = "country_code", networkId = "network_id", networkName = "network_name"
@@ -46,9 +54,14 @@ public struct ReachabilityDetails: Codable, Equatable {
 }
 
 /// The TruID products available for the application developer on the celluar network the app is connected to.
-public struct Product: Codable, Equatable {
-    public let productId: String
-    public let productName: String
+@objc public class Product: NSObject, Codable{
+    @objc public let productId: String
+    @objc public let productName: String
+    
+    public init(productId: String, productName: String) {
+        self.productId = productId
+        self.productName = productName
+    }
     
     private enum CodingKeys : String, CodingKey {
         case productId = "product_id", productName = "product_name"
@@ -58,12 +71,19 @@ public struct Product: Codable, Equatable {
 
 /// A struct to hold the details of the error when `isReachable(...) request is made.
 /// If the request was not made on a Cellular network, this struct will represent the details of the error.
-public struct ReachabilityError: Error, Codable, Equatable {
-    public let type: String
-    public let title: String
-    public let status: Int
-    public let detail: String
+@objc public class ReachabilityError: NSObject, Error, Codable {
+    @objc public let type: String
+    @objc public let title: String
+    @objc public let status: Int
+    @objc public let detail: String
     
+    public init(type: String, title: String, status: Int, detail: String) {
+        self.type = type
+        self.title = title
+        self.status = status
+        self.detail = detail
+        
+    }
     private enum CodingKeys : String, CodingKey {
         case type = "type", title = "title", status = "status", detail = "detail"
         
