@@ -2,6 +2,11 @@
 
 Change Log
 ==========
+## Version 0.3.4
+_2022-05-31_
+**New**
+- Default connection timeout set to 5s
+
 ## Version 0.3.3
 _2022-04-22_
 **New**

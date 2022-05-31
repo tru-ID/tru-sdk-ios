@@ -7,7 +7,7 @@ import Network
 import os
 
 typealias ResultHandler = (ConnectionResult<URL, Data, Error>) -> Void
-let TruSdkVersion = "0.3.3"
+let TruSdkVersion = "0.3.4"
 let DEVICE_IP_URL = "https://%@.api.tru.id/public/coverage/v0.1/device_ip"
 
 //
@@ -23,7 +23,7 @@ class CellularConnectionManager: ConnectionManager, InternalAPI {
 
     //Mitigation for tcp timeout not triggering any events.
     private var timer: Timer?
-    private let CONNECTION_TIME_OUT = 20.0
+    private let CONNECTION_TIME_OUT = 5.0
     private let MAX_REDIRECTS = 10
     private var pathMonitor: NWPathMonitor?
     private var checkResponseHandler: ResultHandler!
