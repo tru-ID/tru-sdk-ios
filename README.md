@@ -32,6 +32,12 @@ Using cocoapods
 Minimum iOS: TruSDK is compatible with iOS 12+
 ```
 
+## Size
+
+```
+tru-sdk-ios: ~170KiB
+```
+
 ## Usage example
 
 
