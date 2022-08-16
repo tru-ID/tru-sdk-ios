@@ -46,7 +46,7 @@ extension TrusdkHTTPCommandTests {
         let url = URL(string: urlString)!
         let expectation = httpCommand(url: url, sdkVersion: TruSdkVersion)
 
-        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil)
+        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil, requestId: nil)
         XCTAssertEqual(expectation, httpCommand)
     }
 
@@ -58,7 +58,7 @@ extension TrusdkHTTPCommandTests {
 
         let expectation = httpCommand(url: url, sdkVersion: TruSdkVersion)
 
-        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil)
+        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil, requestId: nil)
         XCTAssertEqual(expectation, httpCommand)
     }
 
@@ -68,7 +68,7 @@ extension TrusdkHTTPCommandTests {
 
         let url = URL(string: urlString)!
 
-        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil)
+        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil, requestId: nil)
 
         XCTAssertNil(httpCommand)
     }
@@ -78,7 +78,7 @@ extension TrusdkHTTPCommandTests {
 
         let url = URL(string: urlString)!
 
-        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil)
+        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil, requestId: nil)
 
         XCTAssertNil(httpCommand)
     }
@@ -90,7 +90,7 @@ extension TrusdkHTTPCommandTests {
 
         let url = URL(string: urlString)!
 
-        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil)
+        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil, requestId: nil)
 
         XCTAssertNil(httpCommand)
     }
@@ -101,19 +101,19 @@ extension TrusdkHTTPCommandTests {
 extension TrusdkHTTPCommandTests {
     func testHTTPStatus_ShouldReturn_200() {
         let response = http2xxResponse()
-        let actualStatus = connectionManager.httpStatusCode(response: response)
+        let actualStatus = connectionManager.parseHttpStatusCode(response: response)
         XCTAssertEqual(200, actualStatus)
     }
 
     func testHTTPStatus_ShouldReturn_302() {
         let response = http3XXResponse(code: .found, url: "https://test.com")
-        let actualStatus = connectionManager.httpStatusCode(response: response)
+        let actualStatus = connectionManager.parseHttpStatusCode(response: response)
         XCTAssertEqual(302, actualStatus)
     }
 
     func testHTTPStatus_ShouldReturn_0_WhenResponseIsCorrupt() {
         let response = corruptHTTPResponse()
-        let actualStatus = connectionManager.httpStatusCode(response: response)
+        let actualStatus = connectionManager.parseHttpStatusCode(response: response)
         XCTAssertEqual(0, actualStatus)
     }
 }
