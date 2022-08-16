@@ -6,7 +6,7 @@ import Foundation
 import os
 
 /// Collects trace and debugging information for each 'check' session.
-@objc final class TraceCollector: NSObject {
+final class TraceCollector {
 
     let queue = DispatchQueue(label: "id.tru.tracecollector.queue")
 
@@ -50,7 +50,7 @@ import os
     /// Provides the TraceInfo recorded
     func traceInfo() -> TraceInfo {
         queue.sync() {
-            return TraceInfo(trace: trace, debugInfo: debugInfo, responseBody: body)
+            return TraceInfo(trace: trace, debugInfo: debugInfo)
         }
     }
 
@@ -73,7 +73,7 @@ import os
             os_log("%s", type:type, log)
         }
     }
-
+    
     func addBody(body: [String : Any]?) {
         self.body = body
     }
@@ -84,7 +84,7 @@ import os
 
 }
 
-@objc public class DebugInfo: NSObject {
+public class DebugInfo {
 
     internal let dateUtils = DateUtils()
     private var bufferMap = Dictionary<String, String>()
@@ -125,16 +125,9 @@ import os
     }
 }
 
-@objc public class TraceInfo: NSObject {
-    @objc public let trace: String
-    @objc public let debugInfo: DebugInfo
-    @objc public let responseBody: [String : Any]?
-    
-    public init(trace: String, debugInfo: DebugInfo, responseBody: [String : Any]?) {
-        self.trace = trace
-        self.debugInfo = debugInfo
-        self.responseBody = responseBody
-    }
+public struct TraceInfo {
+    public let trace: String
+    public let debugInfo: DebugInfo
 }
 
 func isoTimestampUsingCurrentTimeZone() -> String {

@@ -52,8 +52,8 @@ extension TrusdkCheckTests {
 
     func testCheck_ShouldComplete_WithoutErrors() {
         //results will be processes from last to first
-        let playList: [ConnectionResult<URL, Data, Error>] = [
-            .err(nil),
+        let playList: [ConnectionResult] = [
+            .err(NetworkError.other("error")),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id")!, cookies:nil))
         ]
 
@@ -62,8 +62,10 @@ extension TrusdkCheckTests {
 
         let expectation = self.expectation(description: "CheckURL straight execution path")
         let url =  URL(string: "http://tru.id/check_url")!
-        sdk.check(url: url) { (error) in
-            XCTAssertNil(error)
+        sdk.openWithDataCellular(url: url, debug: false) { (r) in
+            XCTAssertNotNil(r)
+            XCTAssertEqual("sdk_error", r["error"] as! String)
+            XCTAssertEqual("error", r["error_description"] as! String)
             expectation.fulfill()
         }
         waitForExpectations(timeout: 1, handler: nil)
@@ -78,8 +80,8 @@ extension TrusdkCheckTests {
     }
 
     func testCheck_Given3Redirects_ShouldComplete_WithoutError() {
-        let playList: [ConnectionResult<URL, Data, Error>] = [
-            .err(nil),
+        let playList: [ConnectionResult] = [
+            .err(NetworkError.other("error")),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id/uk")!, cookies:nil)),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id")!, cookies:nil)),
             .follow(RedirectResult(url:URL(string: "https://tru.id")!, cookies:nil))
@@ -91,8 +93,10 @@ extension TrusdkCheckTests {
         let expectation = self.expectation(description: "3 Redirects")
         let url = URL(string: "http://tru.id")!
 
-        sdk.check(url: url) { (error)  in
-            XCTAssertNil(error)
+        sdk.openWithDataCellular(url: url, debug: false) { (r) in
+            XCTAssertNotNil(r)
+            XCTAssertEqual("sdk_error", r["error"] as! String)
+            XCTAssertEqual("error", r["error_description"] as! String)
             expectation.fulfill()
         }
         waitForExpectations(timeout: 1, handler: nil)
@@ -112,8 +116,8 @@ extension TrusdkCheckTests {
     }
 
     func testCheck_GivenExceedingMAXRedirects_ShouldComplete_WithError() {
-        let playList: [ConnectionResult<URL, Data, Error>] = [
-            .err(nil),
+        let playList: [ConnectionResult] = [
+            .err(NetworkError.tooManyRedirects),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id/12")!, cookies:nil)),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id/11")!, cookies:nil)),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id/10")!, cookies:nil)), //MAX Redirects is 10
@@ -131,13 +135,12 @@ extension TrusdkCheckTests {
         let mock = MockStateHandlingConnectionManager(playList: playList)
         let sdk = TruSDK(connectionManager: mock)
 
-        let expectedError = NetworkError.other("Connection cancelled - either due to time out, or MAX Redirect reached")
         let expectation = self.expectation(description: "11 Redirects")
         let url = URL(string: "http://tru.id")!
 
-        sdk.check(url: url) { (error)  in
-            XCTAssertNotNil(error)
-            XCTAssertEqual(expectedError, error as! NetworkError)
+        sdk.openWithDataCellular(url: url, debug: false) { (r) in
+            XCTAssertNotNil(r)
+            XCTAssertEqual("sdk_redirect_error", r["error"] as! String)
             expectation.fulfill()
         }
         waitForExpectations(timeout: 3, handler: nil)
@@ -145,8 +148,8 @@ extension TrusdkCheckTests {
 
     func testCheck_Given3Redirects_WithRelativePath_ShouldComplete_WithError() {
 
-        let playList: [ConnectionResult<URL, Data, Error>] = [
-            .err(nil),
+        let playList: [ConnectionResult] = [
+            .err(NetworkError.other("error")),
             .follow(RedirectResult(url:URL(string: "/uk")!,cookies:nil)), //This shouldn't happen, we are covering this in parseRedirect test
             .follow(RedirectResult(url:URL(string: "https://tru.id/uk")!, cookies:nil)),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id/uk")!, cookies:nil))
@@ -158,8 +161,8 @@ extension TrusdkCheckTests {
 
         let url = URL(string: "http://tru.id")!
 
-        sdk.check(url: url) { (error)  in
-            XCTAssertNotNil(error)
+        sdk.openWithDataCellular(url: url, debug: false) { (r) in
+            XCTAssertNotNil(r)
             expectation.fulfill()
         }
 
@@ -168,15 +171,15 @@ extension TrusdkCheckTests {
 
     func testCheck_GivenNoSchemeOrHost_ShouldComplete_WithError() {
 
-        let playList: [ConnectionResult<URL, Data, Error>] = []
+        let playList: [ConnectionResult] = []
 
         let mock = MockConnectionManager(playList: playList)
         let sdk = TruSDK(connectionManager: mock)
 
         let expectation = self.expectation(description: "No Scheme or Host")
         let url = URL(string: "/")!
-        sdk.check(url: url) { (error)  in
-            XCTAssertNotNil(error)
+        sdk.openWithDataCellular(url: url, debug: false) { (r) in
+            XCTAssertNotNil(r)
             expectation.fulfill()
         }
         waitForExpectations(timeout: 3, handler: nil)
@@ -185,15 +188,15 @@ extension TrusdkCheckTests {
 
     func testCheck_GivenNoHTTPCommand_ShouldComplete_WithError() {
 
-        let playList: [ConnectionResult<URL, Data, Error>] = []
+        let playList: [ConnectionResult] = []
 
         let mock = MockConnectionManager(playList: playList, shouldFailCreatingHttpCommand: true)
         let sdk = TruSDK(connectionManager: mock)
 
         let expectation = self.expectation(description: "No HTTP Command")
         let url = URL(string: "http://tru.id")!
-        sdk.check(url: url) { (error)  in
-            XCTAssertNotNil(error)
+        sdk.openWithDataCellular(url: url, debug: false) { (r) in
+            XCTAssertNotNil(r)
             expectation.fulfill()
         }
         waitForExpectations(timeout: 3, handler: nil)
@@ -202,10 +205,7 @@ extension TrusdkCheckTests {
     func testCheck_AfterRedirect_ShouldComplete_WithError() {
         runCheckTestWith(expectedError: .other("Error when sending"))
         runCheckTestWith(expectedError: .other("Error when receiving"))
-        runCheckTestWith(expectedError: .noData("Error when response is empty"))
-        runCheckTestWith(expectedError: .invalidRedirectURL("Location is empty"))
-        runCheckTestWith(expectedError: .httpClient("Error HTTP client"))
-        runCheckTestWith(expectedError: .httpServer("Error HTTP server"))
+//        runCheckTestWith(expectedError: .invalidRedirectURL("Location is empty"))
         runCheckTestWith(expectedError: .other("Error when parsing HTTP status"))
     }
 }
@@ -214,7 +214,7 @@ extension TrusdkCheckTests {
 
     func runCheckTestWith(expectedError: NetworkError) {
 
-        let playList: [ConnectionResult<URL, Data, Error>] = [
+        let playList: [ConnectionResult] = [
             .err(expectedError),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id/uk")!,cookies:nil))
         ]
@@ -224,9 +224,9 @@ extension TrusdkCheckTests {
 
         let expectation = self.expectation(description: "Checking errors")
         let url = URL(string: "http://tru.id")!
-        sdk.check(url: url) { (err)  in
-            XCTAssertNotNil(err)
-            XCTAssertEqual(expectedError, err as! NetworkError)
+        sdk.openWithDataCellular(url: url, debug: false) { (r)  in
+            XCTAssertNotNil(r)
+            XCTAssertEqual("sdk_error", r["error"] as! String)
             expectation.fulfill()
         }
 
@@ -250,8 +250,8 @@ extension TrusdkCheckTests {
 extension TrusdkCheckTests {
 
     func testConnectionStateSeq_GivenSetupPreparingReady_ShouldComplete_WithoutError() {
-        let playList: [ConnectionResult<URL, Data, Error>] = [
-            .err(nil),
+        let playList: [ConnectionResult] = [
+            .err(NetworkError.other("error")),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id")!,cookies: nil))
         ]
 
@@ -264,8 +264,10 @@ extension TrusdkCheckTests {
 
         let url = URL(string: "http://tru.id")!
 
-        sdk.check(url: url) { (error)  in
-            XCTAssertNil(error)
+        sdk.openWithDataCellular(url: url, debug: false) { (r) in
+            XCTAssertNotNil(r)
+            XCTAssertEqual("sdk_error", r["error"] as! String)
+            XCTAssertEqual("error", r["error_description"] as! String)
             expectation.fulfill()
         }
 
@@ -273,8 +275,8 @@ extension TrusdkCheckTests {
     }
 
     func testConnectionStateSeq_GivenSetupPreparingFailed_ShouldComplete_WithError() {
-        let playList: [ConnectionResult<URL, Data, Error>] = [
-            .err(nil),
+        let playList: [ConnectionResult] = [
+            .err(NetworkError.other("error")),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id")!,cookies: nil))
         ]
 
@@ -288,9 +290,9 @@ extension TrusdkCheckTests {
 
         let url = URL(string: "http://tru.id")!
 
-        sdk.check(url: url) { (error)  in
-            XCTAssertNotNil(error)
-            XCTAssertEqual(error!.localizedDescription, dnsError.localizedDescription)
+        sdk.openWithDataCellular(url: url, debug: false) { (r) in
+            XCTAssertNotNil(r)
+            XCTAssertEqual("sdk_error", r["error"] as! String)
             expectation.fulfill()
         }
 
@@ -298,8 +300,8 @@ extension TrusdkCheckTests {
     }
 
     func testConnectionStateSeq_GivenSetupPreparingCancelled_ShouldComplete_WithError() {
-        let playList: [ConnectionResult<URL, Data, Error>] = [
-            .err(nil),
+        let playList: [ConnectionResult] = [
+            .err(NetworkError.other("error")),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id")!,cookies: nil))
         ]
 
@@ -312,8 +314,8 @@ extension TrusdkCheckTests {
 
         let url = URL(string: "http://tru.id")!
 
-        sdk.check(url: url) { (error)  in
-            XCTAssertNotNil(error)
+        sdk.openWithDataCellular(url: url, debug: false) { (r) in
+            XCTAssertNotNil(r)
             expectation.fulfill()
         }
 
@@ -321,8 +323,8 @@ extension TrusdkCheckTests {
     }
 
     func testConnectionStateSeq_GivenSetupPreparingWaitingPreparingReady_ShouldComplete_WithoutError() {
-        let playList: [ConnectionResult<URL, Data, Error>] = [
-            .err(nil),
+        let playList: [ConnectionResult] = [
+            .err(NetworkError.other("error")),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id")!,cookies: nil))
         ]
 
@@ -335,8 +337,10 @@ extension TrusdkCheckTests {
 
         let url = URL(string: "http://tru.id")!
 
-        sdk.check(url: url) { (error)  in
-            XCTAssertNil(error)
+        sdk.openWithDataCellular(url: url, debug: false) { (r) in
+            XCTAssertNotNil(r)
+            XCTAssertEqual("sdk_error", r["error"] as! String)
+            XCTAssertEqual("error", r["error_description"] as! String)
             expectation.fulfill()
         }
 
@@ -344,8 +348,8 @@ extension TrusdkCheckTests {
     }
 
     func testConnectionStateSeq_GivenSetupPreparingWaitingPreparingCancelled_ShouldComplete_WithoutError() {
-        let playList: [ConnectionResult<URL, Data, Error>] = [
-            .err(nil),
+        let playList: [ConnectionResult] = [
+            .err(NetworkError.other("error")),
             .follow(RedirectResult(url:URL(string: "https://www.tru.id")!,cookies: nil))
         ]
 
@@ -358,8 +362,8 @@ extension TrusdkCheckTests {
 
         let url = URL(string: "http://tru.id")!
 
-        sdk.check(url: url) { (error)  in
-            XCTAssertNotNil(error)
+        sdk.openWithDataCellular(url: url, debug: false) { (r) in
+            XCTAssertNotNil(r)
             expectation.fulfill()
         }
 
@@ -452,7 +456,9 @@ extension TrusdkCheckTests {
         let connection = connectionManager.createConnection(scheme: url.scheme!, host: url.host!)
 
         XCTAssertNotNil(connection)
+        #if !targetEnvironment(simulator)
         XCTAssertEqual(connection?.parameters.requiredInterfaceType,  NWInterface.InterfaceType.cellular)
+        #endif
     }
 
     func testCreateConnection_ShouldReturn_WifiProhibitedConnection() {
@@ -460,7 +466,6 @@ extension TrusdkCheckTests {
         let connection = connectionManager.createConnection(scheme: url.scheme!, host: url.host!)
 
         XCTAssertNotNil(connection)
-        XCTAssertEqual(connection!.parameters.prohibitedInterfaceTypes, [NWInterface.InterfaceType.wifi])
         XCTAssertFalse(connection!.parameters.prohibitExpensivePaths)
     }
 }

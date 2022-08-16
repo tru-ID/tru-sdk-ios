@@ -30,51 +30,9 @@ import CoreTelephony
         self.init(connectionManager: CellularConnectionManager())
     }
 
-    /// This method performs a check request given a URL
-    /// - Parameters:
-    ///   - url: URL provided by tru.ID
-    ///   - completion: closure to report check result. Note that, this closure will be called on the Main Thread.
-    @objc public func checkUrlWithResponseBody(url: URL, completion: @escaping (Error?, [String : Any]?) -> Void) {
-        connectionManager.check(url: url, operators: self.operators, completion: completion)
+    @objc public func openWithDataCellular(url: URL, debug: Bool, completion: @escaping ([String : Any]) -> Void) {
+        connectionManager.open(url: url, debug: debug, operators: self.operators, completion: completion)
     }
-
-    /// This method performs a check request given a URL
-    /// - Parameters:
-    ///   - url: URL provided by tru.ID
-    ///   - completion: closure to report check result and the trace information. Note that, this closure will be called on the Main Thread.
-    @objc public func checkWithTrace(url: URL, completion: @escaping (Error?, TraceInfo?) -> Void) {
-        connectionManager.checkWithTrace(url: url, operators: self.operators, completion: completion)
-    }
-    
-    /// This method performs a request to a TruId enpoint and reports back the details if the connection was made over
-    /// cellular.
-    /// - Parameters:
-    ///   - dataResidency: the data residency associated with your tru.ID project
-    ///   - completion: closure to report check result. Note that, this closure will be called on the Main Thread.
-    @objc public func isReachable(dataResidency: String?, completion: @escaping (ReachabilityDetails?, ReachabilityError?) -> Void) {
-        connectionManager.isReachable(dataResidency: dataResidency, operators: self.operators) { connectionResult in
-            switch connectionResult {
-            case .failure(let reachabilityError): do {
-                if let error = reachabilityError {
-                    let err = ReachabilityError(type: error.type, title: error.title, status: -1, detail: error.detail)
-                    completion(nil, err)
-                } else {
-                    completion(nil, ReachabilityError(type: "Unknown", title: "No Error type", status: -1, detail: "Received an error with no known type"))
-                }
-            }
-            case .success(let reachabilityDetails): completion(reachabilityDetails, nil)
-            }
-        }
-    }
-    
-    /// This method performs a request to a TruId enpoint and reports back the details if the connection was made over
-    /// cellular.
-    @objc public func isReachable(completion: @escaping (ReachabilityDetails?, ReachabilityError?) -> Void) {
-        isReachable(dataResidency: nil) { connectionResult, error in
-            completion(connectionResult, error)
-        }
-    }
-
     
 }
 

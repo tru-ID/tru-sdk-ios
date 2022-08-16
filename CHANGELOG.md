@@ -2,6 +2,12 @@
 
 Change Log
 ==========
+## Version 1.0.0-preview
+_2022-08-08_
+
+**Changes**
+- Breaking changes from 0.x.x, see README 
+
 ## Version 0.3.4
 _2022-05-31_
 **New**

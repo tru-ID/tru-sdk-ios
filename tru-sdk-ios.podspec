@@ -1,9 +1,9 @@
 Pod::Spec.new do |spec|
     spec.name         = "tru-sdk-ios"
-    spec.version      = "0.3.4"
+    spec.version      = "1.0.0-preview"
     spec.summary      = "SDK for tru.ID"
     spec.description  = <<-DESC
-    iOS SDK for tru.ID: Silent phone verification.
+    iOS SDK for tru.ID: Silent Authentication.
     DESC
     spec.homepage     = "https://github.com/tru-id/tru-sdk-ios"
     spec.license      = { :type => "MIT", :file => "LICENSE.md" }
