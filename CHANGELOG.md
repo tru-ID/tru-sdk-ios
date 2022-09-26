@@ -2,6 +2,18 @@
 
 Change Log
 ==========
+## Version 1.0.0
+_2022-09-26_
+
+**Changes**
+- Readme
+
+## Version 1.0.0-preview1
+_2022-09-16_
+
+**Bug Fix**
+- Missing debug info in case of error
+
 ## Version 1.0.0-preview
 _2022-08-08_
 

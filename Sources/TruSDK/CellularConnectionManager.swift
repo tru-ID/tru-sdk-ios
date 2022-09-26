@@ -8,7 +8,7 @@ import os
 
 typealias ResultHandler = (ConnectionResult) -> Void
 
-let TruSdkVersion = "1.0.0-preview" 
+let TruSdkVersion = "1.0.0" 
 
 //
 // Force connectivity to cellular only
@@ -47,7 +47,7 @@ class CellularConnectionManager: ConnectionManager {
         let requestId = UUID().uuidString
 
         guard let _ = url.scheme, let _ = url.host else {
-            completion(convertNetworkErrorToDictionary(err:NetworkError.other("No scheme or host found")))
+            completion(convertNetworkErrorToDictionary(err:NetworkError.other("No scheme or host found"), debug: debug))
             return
         }
 
@@ -56,7 +56,7 @@ class CellularConnectionManager: ConnectionManager {
         checkResponseHandler = { [weak self] (response) -> Void in
 
             guard let self = self else {
-                completion(self!.convertNetworkErrorToDictionary(err: NetworkError.other("Unable to carry on")))
+                completion(self!.convertNetworkErrorToDictionary(err: NetworkError.other("Unable to carry on"), debug: debug))
                 return
             }
 
@@ -72,7 +72,7 @@ class CellularConnectionManager: ConnectionManager {
                     } else {
                         self.traceCollector.addDebug(log: "MAX Redirects reached \(String(self.MAX_REDIRECTS))")
                         self.cleanUp()
-                        completion(self.convertNetworkErrorToDictionary(err: NetworkError.tooManyRedirects))
+                        completion(self.convertNetworkErrorToDictionary(err: NetworkError.tooManyRedirects, debug: debug))
                     }
                 } else {
                     self.traceCollector.addDebug(log: "Redirect NOT FOUND")
@@ -81,7 +81,7 @@ class CellularConnectionManager: ConnectionManager {
             case .err(let error):
                 self.cleanUp()
                 self.traceCollector.addDebug(log: "Open completed with \(error.localizedDescription)")
-                completion(self.convertNetworkErrorToDictionary(err: error))
+                completion(self.convertNetworkErrorToDictionary(err: error, debug: debug))
             case .dataOK(let connResp):
                 self.cleanUp()
                 self.traceCollector.addDebug(log: "Data Ok received")
@@ -119,11 +119,11 @@ class CellularConnectionManager: ConnectionManager {
             }
             return json
         } catch {
-            return convertNetworkErrorToDictionary(err: NetworkError.other("JSON deserializarion"))
+            return convertNetworkErrorToDictionary(err: NetworkError.other("JSON deserializarion"), debug: debug)
         }
     }
     
-    func convertNetworkErrorToDictionary(err: NetworkError) -> [String : Any] {
+    func convertNetworkErrorToDictionary(err: NetworkError, debug: Bool) -> [String : Any] {
         var json = [String : Any]()
         switch err {
         case .invalidRedirectURL(let string):
@@ -141,6 +141,14 @@ class CellularConnectionManager: ConnectionManager {
         case .other(let string):
             json["error"] = "sdk_error"
             json["error_description"] = string
+        }
+        if (debug) {
+            let ti = self.traceCollector.traceInfo()
+            var json_debug: [String : Any] = [:]
+            json_debug["device_info"] = ti.debugInfo
+            json_debug["url_trace"] = ti.trace
+            json["debug"] = json_debug
+            self.traceCollector.stopTrace()
         }
         return json
     }
@@ -315,9 +323,9 @@ class CellularConnectionManager: ConnectionManager {
             }
         }
         var position = response.startIndex
-        while let range = response.range(of: #"et-Cookie: (.*)\r\n"#, options: .regularExpression, range: position..<response.endIndex) {
+        while let range = response.range(of: #"ookie: (.*)\r\n"#, options: .regularExpression, range: position..<response.endIndex) {
             let line = response[range]
-            let cookieString = line[line.index(line.startIndex, offsetBy: 11)..<line.index(line.endIndex, offsetBy: -1)]
+            let cookieString = line[line.index(line.startIndex, offsetBy: 7)..<line.index(line.endIndex, offsetBy: -1)]
             self.traceCollector.addDebug(log:"parseCookies \(cookieString)")
             let cs: [HTTPCookie]? = HTTPCookie.cookies(withResponseHeaderFields: ["Set-Cookie" : String(cookieString)], for: url)
             if (!cs!.isEmpty) {

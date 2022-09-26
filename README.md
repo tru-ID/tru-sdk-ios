@@ -13,11 +13,11 @@ When the data connectivity has been achieved and a response has been received fr
 "response_body" : { // optional depending on the HTTP status
            ... // the response body of the opened url 
            ... // see API doc for /device_ip and /redirect
-                },
+          },
 "debug" : {
     "device_info": string, 
     "url_trace" : string
-          }
+    }
 }
 ```
 
@@ -27,7 +27,11 @@ When data connectivity is not available and/or an internal SDK error occurred
 ```
 {
 "error" : string,
-"error_description": string
+"error_description": string,
+"debug" : {
+    "device_info": string, 
+    "url_trace" : string
+    }
 }
 ```
 Potential error codes: `sdk_no_data_connectivity`, `sdk_connection_error`, `sdk_redirect_error`, `sdk_error`.
