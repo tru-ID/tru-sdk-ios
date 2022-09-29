@@ -2,6 +2,12 @@
 
 Change Log
 ==========
+## Version 1.0.1
+_2022-09-29_
+
+**Changes**
+- Bug fix related to MNO requiring cookies
+
 ## Version 1.0.0
 _2022-09-26_
 

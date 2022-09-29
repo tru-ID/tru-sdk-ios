@@ -8,7 +8,7 @@ import os
 
 typealias ResultHandler = (ConnectionResult) -> Void
 
-let TruSdkVersion = "1.0.0" 
+let TruSdkVersion = "1.0.1" 
 
 //
 // Force connectivity to cellular only
@@ -222,7 +222,7 @@ class CellularConnectionManager: ConnectionManager {
              var cookieCount = 0
              var cookieString = String()
              for i in 0..<cookies.count {
-                 if (((cookies[i].isSecure && scheme == "https") || (!cookies[i].isSecure && scheme == "http")) && (cookies[i].domain == "" || (cookies[i].domain != "" && host.contains(cookies[i].domain))) && (cookies[i].path == "" || cookies[i].path == path)) {
+                 if (((cookies[i].isSecure && scheme == "https") || (!cookies[i].isSecure)) && (cookies[i].domain == "" || (cookies[i].domain != "" && host.contains(cookies[i].domain))) && (cookies[i].path == "" ||  path.starts(with: cookies[i].path))) {
                      if (cookieCount > 0) {
                          cookieString += "; "
                      }
@@ -325,12 +325,18 @@ class CellularConnectionManager: ConnectionManager {
         var position = response.startIndex
         while let range = response.range(of: #"ookie: (.*)\r\n"#, options: .regularExpression, range: position..<response.endIndex) {
             let line = response[range]
-            let cookieString = line[line.index(line.startIndex, offsetBy: 7)..<line.index(line.endIndex, offsetBy: -1)]
-            self.traceCollector.addDebug(log:"parseCookies \(cookieString)")
-            let cs: [HTTPCookie]? = HTTPCookie.cookies(withResponseHeaderFields: ["Set-Cookie" : String(cookieString)], for: url)
-            if (!cs!.isEmpty) {
-                cookies.append((cs?.first)!)
-                self.traceCollector.addDebug(log:"cookie=> \((cs!.first)!)")
+            let optCookieString:Substring? = line[line.index(line.startIndex, offsetBy: 7)..<line.index(line.endIndex, offsetBy: -1)]
+            if let cookieString = optCookieString {
+                self.traceCollector.addDebug(log:"parseCookies \(cookieString)")
+                let optCs: [HTTPCookie]? = HTTPCookie.cookies(withResponseHeaderFields: ["Set-Cookie" : String(cookieString)], for: url)
+                if let cs = optCs  {
+                    if (!cs.isEmpty) {
+                    cookies.append((cs.first)!)
+                    self.traceCollector.addDebug(log:"cookie=> \((cs.first)!)")
+                    }
+                } else {
+                    self.traceCollector.addDebug(log:"cannot parse cookie \(cookieString)")
+                }
             }
             position = range.upperBound
         }
