@@ -23,7 +23,11 @@ import CoreTelephony
                 ops.append(op)
             }
         }
-        self.operators = ops.joined(separator: ",")
+        if (!ops.isEmpty) {
+            self.operators = ops.joined(separator: ",")
+        } else {
+            self.operators = nil
+        }
     }
 
     public override convenience init() {
@@ -31,7 +35,11 @@ import CoreTelephony
     }
 
     @objc public func openWithDataCellular(url: URL, debug: Bool, completion: @escaping ([String : Any]) -> Void) {
-        connectionManager.open(url: url, debug: debug, operators: self.operators, completion: completion)
+        connectionManager.open(url: url, accessToken: nil, debug: debug, operators: self.operators, completion: completion)
+    }
+
+    @objc public func openWithDataCellularAndAccessToken(url: URL, accessToken: String?, debug: Bool, completion: @escaping ([String : Any]) -> Void) {
+        connectionManager.open(url: url, accessToken: accessToken, debug: debug, operators: self.operators, completion: completion)
     }
     
 }

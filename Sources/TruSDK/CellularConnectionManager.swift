@@ -8,7 +8,7 @@ import os
 
 typealias ResultHandler = (ConnectionResult) -> Void
 
-let TruSdkVersion = "1.0.1" 
+let TruSdkVersion = "1.0.2" 
 
 //
 // Force connectivity to cellular only
@@ -37,7 +37,7 @@ class CellularConnectionManager: ConnectionManager {
         self.CONNECTION_TIME_OUT = connectionTimeout
     }
     
-    func open(url: URL, debug: Bool, operators: String?, completion: @escaping ([String : Any]) -> Void) {
+    func open(url: URL, accessToken: String?, debug: Bool, operators: String?, completion: @escaping ([String : Any]) -> Void) {
         if (debug) {
             traceCollector.isDebugInfoCollectionEnabled = true
             traceCollector.isConsoleLogsEnabled = true
@@ -68,7 +68,7 @@ class CellularConnectionManager: ConnectionManager {
                         self.traceCollector.addDebug(log: "Redirect found: \(url.absoluteString)")
                         self.traceCollector.addTrace(log: "\nfound redirect: \(url) - \(self.traceCollector.now())")
                         self.createTimer()
-                        self.activateConnectionForDataFetch(url: url, operators: nil, cookies: redirectResult.cookies, requestId: requestId, completion: self.checkResponseHandler)
+                        self.activateConnectionForDataFetch(url: url, accessToken: nil, operators: nil, cookies: redirectResult.cookies, requestId: requestId, completion: self.checkResponseHandler)
                     } else {
                         self.traceCollector.addDebug(log: "MAX Redirects reached \(String(self.MAX_REDIRECTS))")
                         self.cleanUp()
@@ -97,7 +97,7 @@ class CellularConnectionManager: ConnectionManager {
         DispatchQueue.main.async {
             self.startMonitoring()
             self.createTimer()
-            self.activateConnectionForDataFetch(url: url, operators: operators, cookies: nil,requestId: requestId, completion: self.checkResponseHandler)
+            self.activateConnectionForDataFetch(url: url, accessToken: accessToken, operators: operators, cookies: nil,requestId: requestId, completion: self.checkResponseHandler)
         }
     }
     
@@ -188,7 +188,7 @@ class CellularConnectionManager: ConnectionManager {
      }
 
      // MARK: - Utility methods
-     func createHttpCommand(url: URL, operators: String?, cookies: [HTTPCookie]?, requestId: String?) -> String? {
+     func createHttpCommand(url: URL, accessToken: String?, operators: String?, cookies: [HTTPCookie]?, requestId: String?) -> String? {
          guard let host = url.host, let scheme = url.scheme  else {
              return nil
          }
@@ -208,6 +208,9 @@ class CellularConnectionManager: ConnectionManager {
              cmd += String(format:":%d", url.port!)
          } else if (scheme.starts(with:"http") && url.port != nil && url.port != 80) {
              cmd += String(format:":%d", url.port!)
+         }
+         if let token = accessToken {
+             cmd += "\r\nAuthorization: Bearer \(String(describing: token)) "
          }
          if let req = requestId {
              cmd += "\r\nx-tru-sdk-request: \(String(describing: req)) "
@@ -412,15 +415,14 @@ class CellularConnectionManager: ConnectionManager {
     }
     
     
-    func activateConnectionForDataFetch(url: URL, operators: String?, cookies: [HTTPCookie]?, requestId: String?, completion: @escaping ResultHandler) {
-           self.cancelExistingConnection()
+    func activateConnectionForDataFetch(url: URL, accessToken: String?, operators: String?, cookies: [HTTPCookie]?, requestId: String?, completion: @escaping ResultHandler) {           self.cancelExistingConnection()
            guard let scheme = url.scheme,
                  let host = url.host else {
                completion(.err(NetworkError.other("URL has no Host or Scheme")))
                return
            }
 
-            guard let command = createHttpCommand(url: url, operators: operators, cookies: cookies, requestId: requestId),
+           guard let command = createHttpCommand(url: url, accessToken: accessToken, operators: operators, cookies: cookies, requestId: requestId),
                  let data = command.data(using: .utf8) else {
                completion(.err(NetworkError.other("Unable to create HTTP Request command")))
                return
@@ -545,7 +547,7 @@ class CellularConnectionManager: ConnectionManager {
 }
 
 protocol ConnectionManager {
-    func open(url: URL, debug: Bool, operators: String?, completion: @escaping ([String : Any]) -> Void)
+    func open(url: URL, accessToken: String?, debug: Bool, operators: String?, completion: @escaping ([String : Any]) -> Void)
 }
 
 public struct RedirectResult {

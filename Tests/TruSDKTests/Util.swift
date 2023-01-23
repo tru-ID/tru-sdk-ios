@@ -153,13 +153,13 @@ class MockStateHandlingConnectionManager: CellularConnectionManager {
         self.playList = playList
     }
 
-    override func open(url: URL, debug: Bool, operators: String?, completion: @escaping ([String : Any]) -> Void) {
-        super.open(url: url, debug: debug, operators: operators, completion: completion)
+    override func open(url: URL, accessToken: String?, debug: Bool, operators: String?, completion: @escaping ([String : Any]) -> Void) {
+        super.open(url: url, accessToken: accessToken, debug: debug, operators: operators, completion: completion)
     }
 
-    override func activateConnectionForDataFetch(url: URL,operators: String?, cookies: [HTTPCookie]?, requestId: String?, completion: @escaping ResultHandler) {
+    override func activateConnectionForDataFetch(url: URL,accessToken: String?, operators: String?, cookies: [HTTPCookie]?, requestId: String?, completion: @escaping ResultHandler) {
         let url = URL(string: "https://www.tru.id")!
-        let mockCommand = createHttpCommand(url: url, operators: operators, cookies: cookies, requestId: nil)
+        let mockCommand = createHttpCommand(url: url, accessToken:accessToken, operators: operators, cookies: cookies, requestId: nil)
         let mockData = mockCommand?.data(using: .utf8)
         guard let data = mockData else {
             return
@@ -219,14 +219,14 @@ class MockConnectionManager: CellularConnectionManager {
         self.shouldFailCreatingHttpCommand = shouldFailCreatingHttpCommand
     }
 
-    override func open(url: URL, debug: Bool, operators: String?, completion: @escaping ([String : Any]) -> Void) {
-        super.open(url: url, debug: debug, operators: operators, completion: completion)
+    override func open(url: URL, accessToken: String?, debug: Bool, operators: String?, completion: @escaping ([String : Any]) -> Void) {
+        super.open(url: url, accessToken: accessToken, debug: debug, operators: operators, completion: completion)
     }
 
-    override func activateConnectionForDataFetch(url: URL,operators: String?, cookies: [HTTPCookie]?, requestId: String?, completion: @escaping ResultHandler) {
+    override func activateConnectionForDataFetch(url: URL,accessToken: String?, operators: String?, cookies: [HTTPCookie]?, requestId: String?, completion: @escaping ResultHandler) {
         self.isActivateConnectionCalled = true
         self.connectionLifecycle.append("activateConnection")
-        let mockCommand = createHttpCommand(url: url, operators: operators, cookies: cookies, requestId: nil)
+        let mockCommand = createHttpCommand(url: url, accessToken: accessToken, operators: operators, cookies: cookies, requestId: nil)
         let mockData = mockCommand?.data(using: .utf8)
         guard let data = mockData else {
             completion(.err(NetworkError.other("")))
@@ -275,11 +275,11 @@ class MockConnectionManager: CellularConnectionManager {
         //Empty implementation to avoid accidental triggers
     }
     
-    override func createHttpCommand(url: URL, operators: String?, cookies: [HTTPCookie]?, requestId: String?) -> String? {
+    override func createHttpCommand(url: URL, accessToken: String?, operators: String?, cookies: [HTTPCookie]?, requestId: String?) -> String? {
         if shouldFailCreatingHttpCommand {
             return nil
         } else {
-            return super.createHttpCommand(url: url, operators: operators, cookies: cookies, requestId: nil)
+            return super.createHttpCommand(url: url, accessToken: accessToken, operators: operators, cookies: cookies, requestId: nil)
         }
     }
     override func startMonitoring() {
