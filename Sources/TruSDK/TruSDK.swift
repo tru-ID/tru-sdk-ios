@@ -19,7 +19,11 @@ open class TruSDK {
                 ops.append(op)
             }
         }
-        self.operators = ops.joined(separator: ",")
+        if (!ops.isEmpty) {
+            self.operators = ops.joined(separator: ",")
+        } else {
+            self.operators = nil
+        }
     }
 
     public convenience init() {
@@ -33,8 +37,20 @@ open class TruSDK {
     /// This method perform open a given a URL over a data cellular connectivity
     /// - Parameters:
     ///   - url: URL provided by tru.ID
+    ///   - debug A flag to include or not the url trace in the response
+    ///   - accessToken Optional Access Token to be added in the Authorization header (Bearer)
     ///   - completion: closure to report the URL response. Note that, this closure will be called on the Main Thread.
     public func openWithDataCellular(url: URL, debug: Bool, completion: @escaping ([String : Any]) -> Void) {
-        connectionManager.open(url: url, debug: debug, operators: self.operators, completion: completion)
+        connectionManager.open(url: url, accessToken: nil, debug: debug, operators: self.operators, completion: completion)
+    }
+
+    /// This method perform open a given a URL over a data cellular connectivity
+    /// - Parameters:
+    ///   - url: URL provided by tru.ID
+    ///   - accessToken Optional Access Token to be added in the Authorization header (Bearer)
+    ///   - debug A flag to include or not the url trace in the response
+    ///   - completion: closure to report the URL response. Note that, this closure will be called on the Main Thread.
+    public func openWithDataCellularAndAccessToken(url: URL, accessToken: String?, debug: Bool, completion: @escaping ([String : Any]) -> Void) {
+        connectionManager.open(url: url, accessToken: accessToken, debug: debug, operators: self.operators, completion: completion)
     }
 }

@@ -46,7 +46,7 @@ extension TrusdkHTTPCommandTests {
         let url = URL(string: urlString)!
         let expectation = httpCommand(url: url, sdkVersion: TruSdkVersion)
 
-        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil, requestId: nil)
+        let httpCommand = connectionManager.createHttpCommand(url: url, accessToken: nil, operators: nil, cookies: nil, requestId: nil)
         XCTAssertEqual(expectation, httpCommand)
     }
 
@@ -58,7 +58,7 @@ extension TrusdkHTTPCommandTests {
 
         let expectation = httpCommand(url: url, sdkVersion: TruSdkVersion)
 
-        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil, requestId: nil)
+        let httpCommand = connectionManager.createHttpCommand(url: url, accessToken: nil, operators: nil, cookies: nil, requestId: nil)
         XCTAssertEqual(expectation, httpCommand)
     }
 
@@ -68,7 +68,7 @@ extension TrusdkHTTPCommandTests {
 
         let url = URL(string: urlString)!
 
-        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil, requestId: nil)
+        let httpCommand = connectionManager.createHttpCommand(url: url, accessToken: nil, operators: nil, cookies: nil, requestId: nil)
 
         XCTAssertNil(httpCommand)
     }
@@ -78,7 +78,7 @@ extension TrusdkHTTPCommandTests {
 
         let url = URL(string: urlString)!
 
-        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil, requestId: nil)
+        let httpCommand = connectionManager.createHttpCommand(url: url, accessToken: nil, operators: nil, cookies: nil, requestId: nil)
 
         XCTAssertNil(httpCommand)
     }
@@ -90,7 +90,7 @@ extension TrusdkHTTPCommandTests {
 
         let url = URL(string: urlString)!
 
-        let httpCommand = connectionManager.createHttpCommand(url: url, operators: nil, cookies: nil, requestId: nil)
+        let httpCommand = connectionManager.createHttpCommand(url: url, accessToken: nil, operators: nil, cookies: nil, requestId: nil)
 
         XCTAssertNil(httpCommand)
     }

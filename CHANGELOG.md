@@ -2,6 +2,11 @@
 
 Change Log
 ==========
+## Version 1.0.2
+_2023-01-23_
+**New**
+- New method `openWithDataCellularAndAccessToken`
+
 ## Version 1.0.1
 _2022-09-29_
 
