@@ -14,7 +14,6 @@ let TruSdkVersion = "1.0.2"
 // Force connectivity to cellular only
 // CellularConnectionManager might switch from tls to non-tls between redirects
 //
-@available(macOS 10.14, *)
 @available(iOS 12.0, *)
 class CellularConnectionManager: ConnectionManager {
 

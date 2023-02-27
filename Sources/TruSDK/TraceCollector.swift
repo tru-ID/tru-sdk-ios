@@ -116,11 +116,7 @@ public class DebugInfo {
 
     public func deviceString() -> String {
         var device: String = ""
-        #if canImport(UIKit)
         device = UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
-        #elseif os(macOS)
-        device = "macOS / Unknown"
-        #endif
         return device
     }
 }

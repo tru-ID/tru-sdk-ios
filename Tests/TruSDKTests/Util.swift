@@ -19,11 +19,7 @@ func httpCommand(url: URL, sdkVersion: String) -> String {
     }
 
     var system = ""
-    #if canImport(UIKit)
     system = UIDevice.current.systemName + "/" + UIDevice.current.systemVersion
-    #elseif os(macOS)
-    system = "macOS / Unknown"
-    #endif
 
     let expectation = """
     GET \(url.path)\(query) HTTP/1.1\
