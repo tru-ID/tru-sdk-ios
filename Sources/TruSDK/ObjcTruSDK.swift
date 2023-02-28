@@ -4,7 +4,6 @@ import CoreTelephony
 /// This class is only to be used by KMM (Kotlin Multiplatform) developers as Pure Swift dependencies are not yet supported. (v1.6.20 14/4/21)
 /// Kotlin supports interoperability with Objective-C dependencies and Swift dependencies if their APIs are exported to Objective-C with the @objc attribute.
 
-@available(macOS 10.15, *)
 @available(iOS 12.0, *)
 @objc open class ObjcTruSDK: NSObject {
     

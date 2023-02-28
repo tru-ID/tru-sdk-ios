@@ -1,6 +1,5 @@
 import Foundation
 import CoreTelephony
-@available(macOS 10.15, *)
 @available(iOS 12.0, *)
 open class TruSDK {
     
