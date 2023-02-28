@@ -8,7 +8,7 @@ import os
 
 typealias ResultHandler = (ConnectionResult) -> Void
 
-let TruSdkVersion = "1.0.2" 
+let TruSdkVersion = "1.0.3" 
 
 //
 // Force connectivity to cellular only
