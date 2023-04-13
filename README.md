@@ -71,7 +71,7 @@ tru-sdk-ios: ~115KiB
 
 ## Usage example
 
-* Is the device eligible for tru.ID silent authentication?
+* Is the [device eligible](https://developer.tru.id/docs/reference/utils#tag/coverage/operation/get-coverage-by-device-ip) for tru.ID silent authentication?
 
 ```swift
 import TruSDK
@@ -80,7 +80,7 @@ let sdk: TruSDK = TruSDK()
 // retreive access token with coverage scope from back-end
 let token = ...
 // open the device_ip public API endpoint
-sdk.openWithDataCellularAndAccessToken(url: URL(string: "https://eu.api.tru.id/coverage/v0.1/device_ip")!, accessToken: token, debug: false) { (resp) in
+sdk.openWithDataCellularAndAccessToken(url: URL(string: "https://{data_residency}.api.tru.id/coverage/v0.1/device_ip")!, accessToken: token, debug: false) { (resp) in
     if (resp["error_code"]) != nil {
         NSLog("\(resp["error_description"])")
     } else {
