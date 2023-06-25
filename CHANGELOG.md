@@ -2,6 +2,11 @@
 
 Change Log
 ==========
+## Version 1.0.4-preview
+_2023-06-26_
+**New**
+- Convenience method `postWithDataCellular`
+
 ## Version 1.0.3
 _2023-02-27_
 **Changes**
