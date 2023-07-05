@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
     spec.name         = "tru-sdk-ios"
-    spec.version      = "1.0.4-preview"
+    spec.version      = "1.0.4"
     spec.summary      = "SDK for tru.ID"
     spec.description  = <<-DESC
     iOS SDK for tru.ID: SIM Based Authentication.

@@ -2,6 +2,11 @@
 
 Change Log
 ==========
+## Version 1.0.4
+_2023-07-03_
+**Changes**
+- Bug fix regarding relative redirects
+
 ## Version 1.0.4-preview
 _2023-06-26_
 **New**
