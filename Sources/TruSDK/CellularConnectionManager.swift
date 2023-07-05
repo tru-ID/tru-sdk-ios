@@ -8,7 +8,7 @@ import os
 
 typealias ResultHandler = (ConnectionResult) -> Void
 
-let TruSdkVersion = "1.0.4-preview" 
+let TruSdkVersion = "1.0.4" 
 
 //
 // Force connectivity to cellular only
@@ -313,7 +313,7 @@ class CellularConnectionManager: ConnectionManager {
             // some location header are not properly encoded
             let cleanRedirect = redirect.replacingOccurrences(of: " ", with: "+")
             if let redirectURL =  URL(string: String(cleanRedirect)) {
-                return RedirectResult(url: redirectURL.host == nil ? URL(string: redirectURL.path, relativeTo: requestUrl)! : redirectURL, cookies: self.parseCookies(url:requestUrl, response: response, existingCookies: cookies))
+                return RedirectResult(url: redirectURL.host == nil ? URL(string: redirectURL.description, relativeTo: requestUrl)! : redirectURL, cookies: self.parseCookies(url:requestUrl, response: response, existingCookies: cookies))
             } else {
                 self.traceCollector.addDebug(log: "URL malformed \(cleanRedirect)")
                 return nil
@@ -457,6 +457,8 @@ class CellularConnectionManager: ConnectionManager {
             }
         }))
         
+        timer?.invalidate()
+
         //Read the entire response body
         connection?.receiveMessage { data, context, isComplete, error in
             
@@ -665,6 +667,8 @@ class CellularConnectionManager: ConnectionManager {
             }
         }))
         
+        timer?.invalidate()
+
         //Read the entire response body
         connection?.receiveMessage { data, context, isComplete, error in
             
