@@ -8,7 +8,7 @@ open class TruSDK {
 
     init(connectionManager: ConnectionManager) {
         self.connectionManager = connectionManager
-        // retreive operators associated with handset:
+        // retrieve operators associated with handset:
         // a commas separated list of mobile operators (MCCMNC)
         let t = CTTelephonyNetworkInfo()
         var ops: Array<String> = Array()
@@ -53,7 +53,7 @@ open class TruSDK {
         connectionManager.open(url: url, accessToken: accessToken, debug: debug, operators: self.operators, completion: completion)
     }
 
-    /// Convienece method to perform a POST request over  a data cellular connectivity
+    /// Convenience method to perform a POST request over  a data cellular connectivity
     public func  postWithCellularData(url: URL, headers: [String : Any], body: String?, completion: @escaping ([String : Any]) -> Void) {
         connectionManager.post(url: url, headers: headers, body: body, completion: completion)
     }

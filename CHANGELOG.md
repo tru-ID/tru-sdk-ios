@@ -2,6 +2,11 @@
 
 Change Log
 ==========
+## Version 1.0.5
+_2023-07-19_
+**Bug Fix**
+- device_info within `convertConnectionResponseToDictionary` and `convertNetworkErrorToDictionary` methods amended
+
 ## Version 1.0.4
 _2023-07-03_
 **Changes**
