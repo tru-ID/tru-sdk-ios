@@ -2,6 +2,11 @@
 
 Change Log
 ==========
+## Version 1.0.6
+_2023-08-11_
+**Bug Fix**
+- `createHttpCommand` empty path handling
+
 ## Version 1.0.5
 _2023-07-19_
 **Bug Fix**

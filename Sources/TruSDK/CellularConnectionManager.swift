@@ -8,7 +8,7 @@ import os
 
 typealias ResultHandler = (ConnectionResult) -> Void
 
-let TruSdkVersion = "1.0.5" 
+let TruSdkVersion = "1.0.6" 
 
 //
 // Force connectivity to cellular only
@@ -201,6 +201,11 @@ class CellularConnectionManager: ConnectionManager {
         if (url.absoluteString.hasSuffix("/") && !url.path.hasSuffix("/")) {
             path += "/"
         }
+
+        if (path.count == 0) {
+            path = "/"
+        }
+
         var cmd = String(format: "GET %@", path)
         
         if let q = url.query {
