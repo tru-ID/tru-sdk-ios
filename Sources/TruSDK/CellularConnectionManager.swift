@@ -8,7 +8,7 @@ import os
 
 typealias ResultHandler = (ConnectionResult) -> Void
 
-let TruSdkVersion = "1.0.6" 
+let TruSdkVersion = "1.0.7" 
 
 //
 // Force connectivity to cellular only
@@ -55,7 +55,10 @@ class CellularConnectionManager: ConnectionManager {
         checkResponseHandler = { [weak self] (response) -> Void in
             
             guard let self = self else {
-                completion(self!.convertNetworkErrorToDictionary(err: NetworkError.other("Unable to carry on"), debug: debug))
+                var json = [String : Any]()
+                json["error"] = "sdk_error"
+                json["error_description"] = "Unable to carry on"
+                completion(json)
                 return
             }
             
@@ -569,7 +572,10 @@ class CellularConnectionManager: ConnectionManager {
         checkResponseHandler = { [weak self] (response) -> Void in
             
             guard let self = self else {
-                completion(self!.convertNetworkErrorToDictionary(err: NetworkError.other("Unable to carry on"), debug: false))
+                var json = [String : Any]()
+                json["error"] = "sdk_error"
+                json["error_description"] = "Unable to carry on"
+                completion(json)
                 return
             }
             
