@@ -2,6 +2,11 @@
 
 Change Log
 ==========
+## Version 1.0.8
+_2024-01-19_
+**Bug Fix**
+- `sendAndReceiveWithBody` method updated
+
 ## Version 1.0.7
 _2023-08-20_
 **Bug Fix**

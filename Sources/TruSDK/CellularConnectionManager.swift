@@ -8,7 +8,7 @@ import os
 
 typealias ResultHandler = (ConnectionResult) -> Void
 
-let TruSdkVersion = "1.0.7" 
+let TruSdkVersion = "1.0.8" 
 
 //
 // Force connectivity to cellular only
@@ -468,7 +468,7 @@ class CellularConnectionManager: ConnectionManager {
         timer?.invalidate()
 
         //Read the entire response body
-        connection?.receiveMessage { data, context, isComplete, error in
+        connection?.receive(minimumIncompleteLength: 1, maximumLength: 65536){ data, context, isComplete, error in
             
             os_log("Receive isComplete: %s", isComplete.description)
             if let err = error {
