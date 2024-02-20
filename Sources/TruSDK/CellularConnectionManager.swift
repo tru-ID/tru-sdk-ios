@@ -8,7 +8,7 @@ import os
 
 typealias ResultHandler = (ConnectionResult) -> Void
 
-let TruSdkVersion = "1.0.8" 
+let TruSdkVersion = "1.0.9" 
 
 //
 // Force connectivity to cellular only
@@ -45,8 +45,18 @@ class CellularConnectionManager: ConnectionManager {
         
         let requestId = UUID().uuidString
         
-        guard let _ = url.scheme, let _ = url.host else {
+        guard let _scheme = url.scheme, let _ = url.host else {
             completion(convertNetworkErrorToDictionary(err:NetworkError.other("No scheme or host found"), debug: debug))
+            return
+        }
+        
+        guard _scheme.lowercased() == "https" else {
+            // Return an error if the scheme is not HTTPS
+            let errorJson: [String: Any] = [
+                "error": "invalid_scheme",
+                "error_description": "Only HTTPS URLs are allowed. Please use HTTPS instead of HTTP."
+            ]
+            completion(errorJson)
             return
         }
         
@@ -562,9 +572,18 @@ class CellularConnectionManager: ConnectionManager {
     
     // Utils
     func post(url: URL, headers: [String : Any], body: String?, completion: @escaping ([String : Any]) -> Void) {
-        
-        guard let _ = url.scheme, let _ = url.host else {
+        guard let _scheme = url.scheme, let _ = url.host else {
             completion(convertNetworkErrorToDictionary(err:NetworkError.other("No scheme or host found"), debug: false))
+            return
+        }
+        
+        guard _scheme.lowercased() == "https" else {
+            // Return an error if the scheme is not HTTPS
+            let errorJson: [String: Any] = [
+                "error": "invalid_scheme",
+                "error_description": "Only HTTPS URLs are allowed. Please use HTTPS instead of HTTP."
+            ]
+            completion(errorJson)
             return
         }
         

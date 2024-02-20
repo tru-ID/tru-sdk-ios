@@ -2,6 +2,12 @@
 
 Change Log
 ==========
+## Version 1.0.9
+_2024-01-23_
+**Changes**
+- `send` and `post` methods updated to prevent http call requests
+- Method `postWithDataCellular` now deprecated and will be removed in future releases
+
 ## Version 1.0.8
 _2024-01-19_
 **Bug Fix**
