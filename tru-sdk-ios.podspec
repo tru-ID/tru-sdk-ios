@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
     spec.name         = "tru-sdk-ios"
-    spec.version      = "1.0.9"
+    spec.version      = "1.0.10"
     spec.summary      = "SDK for tru.ID"
     spec.description  = <<-DESC
     iOS SDK for tru.ID: SIM Based Authentication.
@@ -14,4 +14,5 @@ Pod::Spec.new do |spec|
     spec.source       = { :git => "https://github.com/tru-id/tru-sdk-ios.git", :tag => "#{spec.version}" }
     spec.source_files  = "Sources/TruSDK/**/*.swift"
     spec.xcconfig = { "SWIFT_VERSION" => "5.3" }
+    spec.resource_bundles ={ "tru-sdk-ios" => ["Sources/PrivacyInfo.xcprivacy"]}
 end
