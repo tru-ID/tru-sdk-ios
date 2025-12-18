@@ -1,3 +1,17 @@
+[![Status: Deprecated](https://img.shields.io/badge/status-deprecated-orange.svg)](https://idlayr.com/)
+
+## ⚠️ Deprecation Notice
+
+This repository is now **deprecated**. We’ve moved our mobile SDKs to a private **IDlayr** distribution to provide better control, stronger runtime protections, and a smaller, more reliable SDK for customers.
+
+Please migrate to the new SDK by **31 March 2026** — full installation and migration steps are provided by IDlayr to customers.
+
+We have stopped supporting the public SDKs and will **remove this repository from GitHub in Q2 2026**.
+
+For migration help, contact **[support@idlayr.com](mailto:support@idlayr.com)**.
+
+---
+
 # tru-sdk-ios
 
 [![Swift Version][swift-image]][swift-url]
